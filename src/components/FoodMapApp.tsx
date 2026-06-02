@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { FoodPlace, MergedPlace, OneMapResult, RecommendationResult } from "@/types";
 import { distanceMeters } from "@/utils/distance";
 import { getVisiblePlaces } from "@/utils/places";
@@ -21,12 +22,14 @@ type Props = {
 };
 
 export function FoodMapApp({ initialSelectedListIds }: Props) {
+  const router = useRouter();
   const foodLists = getFoodLists();
+  const defaultListIds = useMemo(() => foodLists.map((list) => list.id), [foodLists]);
   const [places, setPlaces] = useState<FoodPlace[]>(() => getAllFoodPlaces());
   const [selectedListIds, setSelectedListIds] = useState(() => {
-    const validIds = new Set(foodLists.map((list) => list.id));
-    const fromUrl = initialSelectedListIds?.filter((id) => validIds.has(id)) ?? [];
-    return fromUrl.length ? fromUrl : foodLists.map((list) => list.id);
+    const validIds = new Set(defaultListIds);
+    const fromUrl = [...new Set(initialSelectedListIds?.filter((id) => validIds.has(id)) ?? [])];
+    return fromUrl.length ? fromUrl : defaultListIds;
   });
   const [selectedPlace, setSelectedPlace] = useState<MergedPlace | null>(null);
   const [referencePoint, setReferencePoint] = useState<OneMapResult | null>(null);
@@ -39,6 +42,10 @@ export function FoodMapApp({ initialSelectedListIds }: Props) {
     () => getVisiblePlaces(places, selectedListIds),
     [places, selectedListIds]
   );
+
+  useEffect(() => {
+    router.replace(`/app/map?lists=${selectedListIds.join(",")}`, { scroll: false });
+  }, [router, selectedListIds]);
 
   const selectedPlaceDistance =
     selectedPlace && referencePoint

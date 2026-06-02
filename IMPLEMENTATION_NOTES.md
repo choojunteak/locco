@@ -8,6 +8,8 @@ Latest focused update: `/app/map` now has a compact floating Home / Map / Lists 
 
 Supabase foundation update: the project now includes Supabase client factories, database types, and a mock-backed data access layer. The current UI still runs on mock data until credentials and real query implementations are added.
 
+URL persistence update: selected food lists on `/app/map` now sync live into the `lists` query parameter, so a filtered map view can be shared or recovered.
+
 ## Files Edited
 
 - `src/components/AppShell.tsx`
@@ -70,6 +72,16 @@ The old large list selector buttons were removed from the map view. `ListDrawer.
 
 The map prevents deselecting every list, so the user is never left with a blank state by accident.
 
+## List URL Persistence
+
+`FoodMapApp.tsx` now writes the selected list IDs to the URL whenever the selection changes:
+
+```text
+/app/map?lists=list_annj,list_isabella
+```
+
+This uses Next.js client navigation with `router.replace`, so toggling list filters does not trigger a full page reload. On initial load, `/app/map?lists=<listId>` still seeds the selected list state. Invalid list IDs are ignored, duplicate IDs are collapsed, and the map falls back to the default selected lists if no valid IDs are provided.
+
 ## Chat Drawer
 
 The chatbot is collapsed by default. The map shows only an `Ask Locco` bottom pill. Tapping it opens a bottom sheet with:
@@ -122,30 +134,32 @@ This keeps the app working without Supabase credentials while giving the next pa
 3. Confirm the map fills the screen and the default UI is compact.
 4. Tap the `5 lists` button and toggle one or more lists.
 5. Confirm map pins update and selected-list chips change.
-6. Search for `Orchard MRT` and select a result.
-7. Tap `Ask Locco`, ask `dessert near Orchard MRT`, and select a result.
-8. Tap a map pin and confirm the place bottom sheet is scrollable.
-9. Tap the bottom `Home`, `Map`, and `Lists` navigation pill links.
-10. Confirm `Map` is visually active while on `/app/map`.
-11. Open `http://localhost:3000/app/lists`.
-12. Click a list card, then click `View this list on map`.
-13. Confirm `/app/map?lists=<listId>` loads with only that list selected.
-14. Confirm the app still runs without `.env.local`.
-15. Optional: add Supabase values to `.env.local` and confirm the app still builds; live queries are not enabled yet.
+6. Confirm the browser URL updates to `/app/map?lists=...` without a full reload.
+7. Copy the URL, reload it, and confirm the same lists are selected.
+8. Try `/app/map?lists=not_real,list_annj` and confirm only the valid list is selected.
+9. Search for `Orchard MRT` and select a result.
+10. Tap `Ask Locco`, ask `dessert near Orchard MRT`, and select a result.
+11. Tap a map pin and confirm the place bottom sheet is scrollable.
+12. Tap the bottom `Home`, `Map`, and `Lists` navigation pill links.
+13. Confirm `Map` is visually active while on `/app/map`.
+14. Open `http://localhost:3000/app/lists`.
+15. Click a list card, then click `View this list on map`.
+16. Confirm `/app/map?lists=<listId>` loads with only that list selected.
+17. Confirm the app still runs without `.env.local`.
+18. Optional: add Supabase values to `.env.local` and confirm the app still builds; live queries are not enabled yet.
 
 ## Known Limitations
 
 - Add-place saves are still local state only.
 - Ask Locco is still rule-based and keyword-driven.
 - The map uses OpenStreetMap raster tiles for a no-key MVP.
-- The list filter is represented in the URL only on initial page load.
+- The list filter now persists in the URL, but the URL is only updated while the user is on `/app/map`.
 - The compact map navigation is intentionally separate from the full app bottom nav, so nav styling is duplicated lightly for now.
 - Supabase clients are scaffolded, but the data layer still returns mock data.
 - No real authentication or Supabase persistence is connected yet.
 
 ## Recommended Next Fixes
 
-- Persist selected lists in the URL as the user toggles them.
 - Add a compact mobile place-results drawer after recommendation queries.
 - Replace mock data helper bodies with Supabase queries.
 - Add Supabase auth and saved-place persistence.
