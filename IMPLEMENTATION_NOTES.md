@@ -6,15 +6,17 @@ This pass refactored the Locco map UI from a dashboard-style overlay into a mobi
 
 Latest focused update: `/app/map` now has a compact floating Home / Map / Lists navigation pill so users can leave the full-screen map without restoring the larger bottom navigation.
 
+Supabase seed update: the database setup now uses stable readable text IDs that match the current mock data, and `supabase/seed.sql` can insert the demo users, lists, places, saved-place relationships, tags, comments, and source links.
+
 Supabase foundation update: the project now includes Supabase client factories, database types, and a mock-backed data access layer. The current UI still runs on mock data until credentials and real query implementations are added.
 
 URL persistence update: selected food lists on `/app/map` now sync live into the `lists` query parameter, so a filtered map view can be shared or recovered.
 
 Ask Locco results update: recommendation results now appear as compact map-oriented cards with distance, tags, saved-by context, and a short reason explaining why Locco suggested each place.
 
-Recommendation focus update: recommended and selected places now render in separate non-clustered map overlay layers, so Ask Locco results remain visible even when nearby normal pins are clustered. Selecting a recommendation also uses stronger zoom and camera padding so the selected pin stays above the compact place sheet.
+Recommendation focus update: recommended places now keep the normal place-pin style with a subtle highlight layered on top. Selecting a recommendation also uses stronger zoom and camera padding so the selected pin stays above the compact place sheet.
 
-Ask Locco flow update: after selecting a recommendation, the place sheet now includes a compact `Back to recommendations` action that reopens the previous Ask Locco results without rerunning the prompt. The rule-based recommender also has a lightweight confidence guard so meaningless prompts do not return unrelated Orchard-default results.
+Ask Locco flow update: after selecting a recommendation, the place sheet now includes a compact `← Recommendations` action in the header that reopens the previous Ask Locco results without rerunning the prompt. The rule-based recommender also has a lightweight confidence guard so meaningless prompts do not return unrelated Orchard-default results.
 
 ## Files Edited
 
@@ -42,6 +44,7 @@ Ask Locco flow update: after selecting a recommendation, the place sheet now inc
 - `src/lib/data/comments.ts`
 - `src/lib/data/placeSources.ts`
 - `supabase/schema.sql`
+- `supabase/seed.sql`
 
 ## Map Layout
 
@@ -101,12 +104,12 @@ Submitting a new query clears previous highlighted pins before the next result s
 
 ## Recommended Pin Focus
 
-`MapView.tsx` now keeps the normal saved-place source clustered, but renders Ask Locco recommendation results as a separate non-clustered overlay:
+`MapView.tsx` keeps Ask Locco recommendation highlights on the normal clustered saved-place source:
 
-- Recommended pins use cream fill, tomato outline, glow, and a ranking number.
-- The selected place gets a larger tomato pin, white ring, glow, and label above the clustered layer.
-- Recommended and selected places are filtered out of the normal unclustered pin layer to avoid duplicate-looking pins.
-- Clusters can still represent nearby normal places, but recommended and selected pins remain individually visible above them.
+- Recommended places keep their normal category-colored place pin and place-label behavior.
+- Recommended pins add a subtle tomato glow/ring and slightly stronger outline.
+- The selected place gets a stronger glow, larger pin, stronger outline, and label treatment.
+- Recommended places can still merge into normal clusters when zoomed out, keeping the map cleaner.
 
 When a place is selected, the map eases to it with a minimum zoom of `15.4` and bottom camera padding. This positions the selected pin in the visible map area above the place bottom sheet instead of directly behind it.
 
@@ -114,9 +117,9 @@ When a place is selected, the map eases to it with a minimum zoom of `15.4` and 
 
 ## Returning To Recommendations
 
-`FoodMapApp.tsx` now stores the last Ask Locco query, summary, and result cards while the user remains on `/app/map`. Selecting a recommendation closes the Ask Locco sheet but keeps that session state and keeps the recommended pin highlights active. The compact place sheet receives an optional `Back to recommendations` action when previous results exist.
+`FoodMapApp.tsx` now stores the last Ask Locco query, summary, and result cards while the user remains on `/app/map`. Selecting a recommendation closes the Ask Locco sheet but keeps that session state and keeps the recommended pin highlights active. The compact place sheet receives an optional `← Recommendations` action in the top-left header area when previous results exist.
 
-Tapping `Back to recommendations` reopens the Ask Locco bottom sheet with the same query and result cards. The user does not need to retype the prompt.
+Tapping `← Recommendations` reopens the Ask Locco bottom sheet with the same query and result cards. The user does not need to retype the prompt.
 
 Closing Ask Locco directly with the backdrop or close button intentionally clears the previous results and removes old highlights.
 
@@ -151,6 +154,28 @@ The map page accepts `?lists=<listId>` and starts with only that list selected.
 - `createServerSupabaseClient()` returns a typed service-role client when `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` exist.
 - If env values are missing, both helpers return `null`.
 
+`supabase/schema.sql` now prepares the current MVP data shape:
+
+- `profiles` for demo users and future account profiles
+- `friendships` for trust relationships once social features are connected
+- `food_lists` for owner-led lists, including list colors
+- `places` for Singapore food places, coordinates, price range, and notes
+- `saved_places` for list-place relationships, status, and rating
+- `place_tags` for category and mood tags
+- `comments` for place comments
+- `place_sources` for Instagram, TikTok, website, manual, and other source links
+
+IDs are text with UUID defaults. This keeps the seeded MVP rows readable, such as `list_annj` and `wild-honey`, while still allowing generated IDs later.
+
+`supabase/seed.sql` is idempotent and seeds the current mock data:
+
+- Demo profiles for You, Annj, Ryan, Isabella, and Josh
+- The five current food lists
+- All current mock places and coordinates
+- Saved-place relationships for each list that saved each place
+- Category and mood tags
+- Existing notes, comments, ratings, statuses, and source links
+
 The data access layer in `src/lib/data/` currently returns mock data and includes comments marking where Supabase queries should replace the fallback. Page-level reads now use these helpers where practical:
 
 - `getFoodLists()`
@@ -164,6 +189,18 @@ The data access layer in `src/lib/data/` currently returns mock data and include
 - `getCommentsByPlaceId(placeId)`
 
 This keeps the app working without Supabase credentials while giving the next pass a clear integration boundary.
+
+## Supabase Manual Setup
+
+1. Create a Supabase project.
+2. Open the Supabase SQL editor.
+3. Run `supabase/schema.sql`.
+4. Run `supabase/seed.sql`.
+5. Copy `.env.example` to `.env.local` only when testing Supabase clients locally.
+6. Fill in `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
+7. Keep `.env.local` out of git.
+
+Live Supabase reads are not connected yet after this pass. The seeded database is ready for the future data-layer integration, but the current UI still uses mock data.
 
 ## Manual Test Steps
 
@@ -179,9 +216,9 @@ This keeps the app working without Supabase credentials while giving the next pa
 10. Tap `Ask Locco`, ask `dessert near Orchard MRT`, and select a result.
 11. Confirm each recommendation card shows distance, tags, saved-by context, and a short reason.
 12. Tap a recommendation and confirm Ask Locco closes, the map focuses the place, and the place bottom sheet opens.
-13. Tap `Back to recommendations` in the place sheet and confirm the previous query/results return without retyping.
+13. Tap `← Recommendations` in the place sheet header and confirm the previous query/results return without retyping.
 14. Confirm the selected pin is visible above the compact place sheet instead of hidden behind it.
-15. Confirm recommended pins have a distinct numbered style while the result sheet is open.
+15. Confirm recommended pins still look like normal place pins with a subtle highlighted style while results are active.
 16. Submit a different Ask Locco query and confirm highlighted pins update.
 17. Close Ask Locco and confirm old recommendation highlights are removed.
 18. Try `random nonsense place` and confirm Locco shows a helpful no-confidence state.
@@ -192,7 +229,8 @@ This keeps the app working without Supabase credentials while giving the next pa
 23. Click a list card, then click `View this list on map`.
 24. Confirm `/app/map?lists=<listId>` loads with only that list selected.
 25. Confirm the app still runs without `.env.local`.
-26. Optional: add Supabase values to `.env.local` and confirm the app still builds; live queries are not enabled yet.
+26. Optional: create a Supabase project, run `supabase/schema.sql`, then run `supabase/seed.sql`.
+27. Optional: add Supabase values to `.env.local` and confirm the app still builds; live queries are not enabled yet.
 
 ## Known Limitations
 
@@ -201,10 +239,10 @@ This keeps the app working without Supabase credentials while giving the next pa
 - Recommendation reasons are generated from deterministic scoring signals, not an LLM explanation.
 - The low-confidence guard is keyword/place/list based and can still miss ambiguous natural language.
 - The map uses OpenStreetMap raster tiles for a no-key MVP.
-- Recommended pins are highlighted only while Ask Locco results are active; after selecting a result, the selected-place overlay remains.
+- Recommended pins are highlighted only while Ask Locco results are active.
 - The list filter now persists in the URL, but the URL is only updated while the user is on `/app/map`.
 - The compact map navigation is intentionally separate from the full app bottom nav, so nav styling is duplicated lightly for now.
-- Supabase clients are scaffolded, but the data layer still returns mock data.
+- Supabase schema and seed files are prepared, but the data layer still returns mock data.
 - No real authentication or Supabase persistence is connected yet.
 
 ## Recommended Next Fixes

@@ -80,9 +80,11 @@ The MVP does not require these values to run. OneMap search currently uses the p
 The project includes a Supabase foundation, but the app still runs without Supabase credentials.
 
 1. Create a Supabase project.
-2. Run `supabase/schema.sql` in the Supabase SQL editor.
-3. Copy `.env.example` to `.env.local`.
-4. Fill in:
+2. Open the Supabase SQL editor.
+3. Run `supabase/schema.sql` to create the MVP tables.
+4. Run `supabase/seed.sql` to insert the current Locco demo lists, places, tags, comments, sources, and saved-place relationships.
+5. Copy `.env.example` to `.env.local` only when you are ready to test Supabase clients locally.
+6. Fill in:
 
 ```text
 NEXT_PUBLIC_SUPABASE_URL=
@@ -92,11 +94,15 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 Do not commit `.env.local`.
 
+Important: after this setup pass, the UI still reads from `src/data/mockData.ts` through the mock-backed helpers in `src/lib/data/`. Running the schema and seed prepares the database; it does not switch the app to live Supabase reads yet.
+
 Current Supabase files:
 
 - `src/lib/supabase/client.ts` - browser-safe client factory
 - `src/lib/supabase/server.ts` - service-role server client factory for future routes
 - `src/lib/supabase/types.ts` - typed database shape matching `schema.sql`
+- `supabase/schema.sql` - MVP database tables for demo owners, lists, places, saves, tags, comments, and sources
+- `supabase/seed.sql` - idempotent seed for the current mock Locco data
 - `src/lib/data/` - data access helpers that currently return mock data
 
 If Supabase env values are missing, the client helpers return `null` and the data layer keeps using mock data. This is intentional so the MVP remains demoable during development.
@@ -117,11 +123,12 @@ If Supabase env values are missing, the client helpers return `null` and the dat
 - `src/app/api/onemap/search/route.ts` - server-side OneMap search route
 - `src/app/api/recommend/route.ts` - recommendation API route
 - `supabase/schema.sql` - planned database structure
+- `supabase/seed.sql` - current mock data as SQL seed data
 
 ## Current MVP Limitations
 
 - Authentication is mocked.
-- Supabase is scaffolded but not yet used for live persistence.
+- Supabase schema and seed files are prepared but not yet used for live persistence.
 - Food lists, places, comments, tags, and source links still read from local mock data.
 - Places saved through the add modal only live in browser state until refresh.
 - Recommendation logic is deterministic keyword matching, not an LLM yet.

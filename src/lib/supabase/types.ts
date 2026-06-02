@@ -8,14 +8,18 @@ export type Database = {
           id: string;
           username: string;
           display_name: string;
+          avatar_initials: string;
           avatar_url: string | null;
+          is_demo: boolean;
           created_at: string;
         };
         Insert: {
           id?: string;
           username: string;
           display_name: string;
+          avatar_initials: string;
           avatar_url?: string | null;
+          is_demo?: boolean;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
@@ -42,7 +46,8 @@ export type Database = {
           id: string;
           owner_id: string;
           name: string;
-          description: string | null;
+          description: string;
+          color: string;
           privacy: "private" | "friends" | "public";
           created_at: string;
         };
@@ -50,7 +55,8 @@ export type Database = {
           id?: string;
           owner_id: string;
           name: string;
-          description?: string | null;
+          description?: string;
+          color?: string;
           privacy?: "private" | "friends" | "public";
           created_at?: string;
         };
@@ -64,6 +70,8 @@ export type Database = {
           postal_code: string | null;
           latitude: number;
           longitude: number;
+          price_range: "$" | "$$" | "$$$" | "$$$$";
+          notes: string;
           normalized_key: string | null;
           created_at: string;
         };
@@ -74,6 +82,8 @@ export type Database = {
           postal_code?: string | null;
           latitude: number;
           longitude: number;
+          price_range: "$" | "$$" | "$$$" | "$$$$";
+          notes?: string;
           normalized_key?: string | null;
           created_at?: string;
         };
@@ -88,7 +98,6 @@ export type Database = {
           note: string | null;
           status: "want_to_try" | "tried" | "favourite";
           rating: number | null;
-          price_range: "$" | "$$" | "$$$" | "$$$$" | null;
           created_at: string;
         };
         Insert: {
@@ -99,7 +108,6 @@ export type Database = {
           note?: string | null;
           status?: "want_to_try" | "tried" | "favourite";
           rating?: number | null;
-          price_range?: "$" | "$$" | "$$$" | "$$$$" | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["saved_places"]["Insert"]>;
@@ -140,14 +148,14 @@ export type Database = {
         Row: {
           id: string;
           place_id: string;
-          source_type: "tiktok" | "instagram" | "manual" | "other";
+          source_type: "tiktok" | "instagram" | "website" | "manual" | "other";
           url: string;
           created_at: string;
         };
         Insert: {
           id?: string;
           place_id: string;
-          source_type: "tiktok" | "instagram" | "manual" | "other";
+          source_type: "tiktok" | "instagram" | "website" | "manual" | "other";
           url: string;
           created_at?: string;
         };
