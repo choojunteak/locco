@@ -6,7 +6,7 @@
 
 :root {
   color-scheme: light;
-  background: #fff8ef;
+  background: #f5f3f0;
 }
 
 * {
@@ -15,7 +15,7 @@
 
 body {
   margin: 0;
-  background: #fff8ef;
+  background: #f5f3f0;
   color: #231f20;
 }
 
@@ -31,4 +31,13 @@ a {
 
 .bottom-sheet-scroll {
   scrollbar-width: thin;
+}
+
+@theme {
+  --color-cream: #f5f3f0;
+  --color-berry: #ECC4C3;
+  --color-blossom: #B97D7B;
+  --color-meadow: #928E5E;
+  --color-forest: #575527;
+  --color-ink: #575527;
 }
