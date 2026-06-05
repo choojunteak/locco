@@ -1,3 +1,7 @@
+
+## `IMPLEMENTATION_NOTES.md`
+
+```md
 # Implementation Notes
 
 ## What Changed
@@ -18,9 +22,20 @@ Recommendation focus update: recommended places now keep the normal place-pin st
 
 Ask Locco flow update: after selecting a recommendation, the place sheet now includes a compact `← Recommendations` action in the header that reopens the previous Ask Locco results without rerunning the prompt. The rule-based recommender also has a lightweight confidence guard so meaningless prompts do not return unrelated Orchard-default results.
 
+Latest list UX update: `/app/lists` now uses a friend/list-owner discovery layout with Locco palette pills and large swipeable saved-list cards. The page is desktop-responsive instead of being constrained to a phone-width layout.
+
+Latest list-detail update: `/app/lists/[id]` now renders an interactive `PlaceStack` client component. Saved places behave more like an Apple Wallet-style animated stack: users can move through the stack with mouse wheel, trackpad scroll, or finger swipe; the active card comes forward; surrounding cards compress neatly above and below; and tapping the active card flips it to show place details.
+
+Design palette update: the old cream tone is being replaced with Butter `#FFF1B5`, alongside Berry Good `#ECC4C3`, Usu Koubai Blossom `#B97D7B`, Meadow Mauve `#928E5E`, Soldier Green/Forest `#575527`, and Ink `#231F20`.
+
+Image-cover decision: list cards should not use placeholder image files for now. When the database/source data is ready, list cover images should be generated automatically from live place images, TikTok/source thumbnails, or a dedicated `cover_image_url` field.
+
 ## Files Edited
 
 - `src/components/AppShell.tsx`
+- `src/components/BottomNav.tsx`
+- `src/components/PlaceStack.tsx`
+- `src/app/globals.css`
 - `src/components/FoodMapApp.tsx`
 - `src/components/MapView.tsx`
 - `src/components/SearchLocationBox.tsx`
@@ -69,6 +84,27 @@ The normal app bottom nav remains hidden on `/app/map` to preserve the full-scre
 
 The `Ask Locco` and `Add` controls were moved upward so they do not overlap with this navigation. The `5 lists` button remains only for filtering visible map pins, not for navigating to the Lists page.
 
+## Bottom Navigation
+
+The normal bottom navigation has been restyled into a floating rounded pill using the Locco palette. The old full-width fixed bottom bar caused a grey rectangle across the bottom of the screen, so the nav container is now pointer-safe and visually limited to the rounded pill itself.
+
+- Active route uses Forest/Soldier Green.
+- The nav background uses Berry/Butter-style softness.
+- The full-width grey bar should not return unless intentionally redesigned.
+
+## Visual System
+
+The current palette is:
+
+- Butter: `#FFF1B5`
+- Berry Good: `#ECC4C3`
+- Usu Koubai Blossom: `#B97D7B`
+- Meadow Mauve: `#928E5E`
+- Soldier Green / Forest: `#575527`
+- Ink: `#231F20`
+
+`src/app/globals.css` should expose Butter as the replacement for the older `cream` token if existing components still use `bg-cream` or `text-cream`.
+
 ## List Drawer
 
 The old large list selector buttons were removed from the map view. `ListDrawer.tsx` now opens from the compact list count button. Each row includes:
@@ -87,171 +123,3 @@ The map prevents deselecting every list, so the user is never left with a blank 
 
 ```text
 /app/map?lists=list_annj,list_isabella
-```
-
-This uses Next.js client navigation with `router.replace`, so toggling list filters does not trigger a full page reload. On initial load, `/app/map?lists=<listId>` still seeds the selected list state. Invalid list IDs are ignored, duplicate IDs are collapsed, and the map falls back to the default selected lists if no valid IDs are provided.
-
-## Chat Drawer
-
-The chatbot is collapsed by default. The map shows only an `Ask Locco` bottom pill. Tapping it opens a bottom sheet with:
-
-- Example prompt
-- Query input
-- Compact recommendation cards with place name, distance, tags, saved-by context, and a short reason
-- Helpful no-result state
-
-Submitting a new query clears previous highlighted pins before the next result set appears. Selecting a recommendation closes the chat drawer, focuses the place on the map, and opens the place bottom sheet.
-
-## Recommended Pin Focus
-
-`MapView.tsx` keeps Ask Locco recommendation highlights on the normal clustered saved-place source:
-
-- Recommended places keep their normal category-colored place pin and place-label behavior.
-- Recommended pins add a subtle tomato glow/ring and slightly stronger outline.
-- The selected place gets a stronger glow, larger pin, stronger outline, and label treatment.
-- Recommended places can still merge into normal clusters when zoomed out, keeping the map cleaner.
-
-When a place is selected, the map eases to it with a minimum zoom of `15.4` and bottom camera padding. This positions the selected pin in the visible map area above the place bottom sheet instead of directly behind it.
-
-`PlaceBottomSheet.tsx` was shortened to a lighter preview sheet with a lower mobile max-height. The action buttons were moved higher in the sheet so Google Maps, Apple Maps, Save, and Details stay easier to reach.
-
-## Returning To Recommendations
-
-`FoodMapApp.tsx` now stores the last Ask Locco query, summary, and result cards while the user remains on `/app/map`. Selecting a recommendation closes the Ask Locco sheet but keeps that session state and keeps the recommended pin highlights active. The compact place sheet receives an optional `← Recommendations` action in the top-left header area when previous results exist.
-
-Tapping `← Recommendations` reopens the Ask Locco bottom sheet with the same query and result cards. The user does not need to retype the prompt.
-
-Closing Ask Locco directly with the backdrop or close button intentionally clears the previous results and removes old highlights.
-
-## Low-Confidence Queries
-
-The recommendation utility now checks whether the prompt contains at least one meaningful signal before using the default location fallback:
-
-- Food/category/mood tag match
-- Saved-by/list-owner match, such as `Isabella`
-- Mock place-name match
-
-If none are found, the API returns no results and the UI shows a helpful no-confidence state instead of unrelated default recommendations.
-
-## List Detail Routes
-
-`/app/lists` cards are now clickable. A new route, `/app/lists/[id]`, shows:
-
-- List name
-- Owner
-- Description
-- Number of places
-- Saved places in that list
-- `View this list on map` link
-
-The map page accepts `?lists=<listId>` and starts with only that list selected.
-
-## Supabase Read-Only Data
-
-`@supabase/supabase-js` is installed. The Supabase helpers are intentionally safe during MVP development:
-
-- `createBrowserSupabaseClient()` returns a typed Supabase client when `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` exist.
-- `createServerSupabaseClient()` uses the same public Supabase key for read-only server data loading.
-- The old `NEXT_PUBLIC_SUPABASE_ANON_KEY` name remains supported as a fallback if it already exists.
-- If env values are missing, both helpers return `null`.
-- The app does not use `SUPABASE_SERVICE_ROLE_KEY`, `sb_secret_*`, or any private Supabase key in client-side code.
-
-`supabase/schema.sql` now prepares the current MVP data shape:
-
-- `profiles` for demo users and future account profiles
-- `friendships` for trust relationships once social features are connected
-- `food_lists` for owner-led lists, including list colors
-- `places` for Singapore food places, coordinates, price range, and notes
-- `saved_places` for list-place relationships, status, and rating
-- `place_tags` for category and mood tags
-- `comments` for place comments
-- `place_sources` for Instagram, TikTok, website, manual, and other source links
-
-IDs are text with UUID defaults. This keeps the seeded MVP rows readable, such as `list_annj` and `wild-honey`, while still allowing generated IDs later.
-
-`supabase/seed.sql` is idempotent and seeds the current mock data:
-
-- Demo profiles for You, Annj, Ryan, Isabella, and Josh
-- The five current food lists
-- All current mock places and coordinates
-- Saved-place relationships for each list that saved each place
-- Category and mood tags
-- Existing notes, comments, ratings, statuses, and source links
-
-The data access layer in `src/lib/data/` now keeps the UI-facing return shape stable while reading from Supabase first:
-
-- `getFoodLists()`
-- `getFoodListsWithCounts()`
-- `getListById(listId)`
-- `getAllFoodPlaces()`
-- `getPlaceById(placeId)`
-- `getPlacesForSelectedLists(listIds)`
-- `getPlacesByListId(listId)`
-- `createSavedPlace(input)`
-- `getCommentsByPlaceId(placeId)`
-
-The read combiner queries `profiles`, `food_lists`, `places`, `saved_places`, `place_tags`, `comments`, and `place_sources`, then maps those rows into the existing `FoodList` and `FoodPlace` shapes. This keeps the app working without Supabase credentials while letting the current UI use seeded Supabase data when available.
-
-## Supabase Manual Setup
-
-1. Create a Supabase project.
-2. Open the Supabase SQL editor.
-3. Run `supabase/schema.sql`.
-4. Run `supabase/seed.sql`.
-5. Copy `.env.example` to `.env.local` only when testing Supabase clients locally.
-6. Fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-7. Keep `.env.local` out of git.
-
-`NEXT_PUBLIC_SUPABASE_ANON_KEY` is still accepted as a legacy fallback if that is the key name already in the local environment. Private service-role or `sb_secret_*` keys should not be added for this read-only MVP path.
-
-With Supabase enabled, restart the dev server and check `/app/map`, `/app/lists`, `/app/lists/list_annj`, `/app/place/wild-honey`, selected-list URL persistence, and Ask Locco recommendations. To test fallback, rename `.env.local` to `.env.local.off` or remove the Supabase values, restart the dev server, and confirm the same routes still load from mock data.
-
-## Manual Test Steps
-
-1. Start the app with `npm.cmd run dev`.
-2. Open `http://localhost:3000/app/map`.
-3. Confirm the map fills the screen and the default UI is compact.
-4. Tap the `5 lists` button and toggle one or more lists.
-5. Confirm map pins update and selected-list chips change.
-6. Confirm the browser URL updates to `/app/map?lists=...` without a full reload.
-7. Copy the URL, reload it, and confirm the same lists are selected.
-8. Try `/app/map?lists=not_real,list_annj` and confirm only the valid list is selected.
-9. Search for `Orchard MRT` and select a result.
-10. Tap `Ask Locco`, ask `dessert near Orchard MRT`, and select a result.
-11. Confirm each recommendation card shows distance, tags, saved-by context, and a short reason.
-12. Tap a recommendation and confirm Ask Locco closes, the map focuses the place, and the place bottom sheet opens.
-13. Tap `← Recommendations` in the place sheet header and confirm the previous query/results return without retyping.
-14. Confirm the selected pin is visible above the compact place sheet instead of hidden behind it.
-15. Confirm recommended pins still look like normal place pins with a subtle highlighted style while results are active.
-16. Submit a different Ask Locco query and confirm highlighted pins update.
-17. Close Ask Locco and confirm old recommendation highlights are removed.
-18. Try `random nonsense place` and confirm Locco shows a helpful no-confidence state.
-19. Tap a normal map pin and confirm the place bottom sheet still opens.
-20. Tap the bottom `Home`, `Map`, and `Lists` navigation pill links.
-21. Confirm `Map` is visually active while on `/app/map`.
-22. Open `http://localhost:3000/app/lists`.
-23. Click a list card, then click `View this list on map`.
-24. Confirm `/app/map?lists=<listId>` loads with only that list selected.
-25. Confirm the app still runs without `.env.local`.
-26. Optional: create a Supabase project, run `supabase/schema.sql`, then run `supabase/seed.sql`.
-27. Optional: add Supabase values to `.env.local`, restart the dev server, and confirm seeded data appears through the same UI flows.
-
-## Known Limitations
-
-- Add-place saves are still local state only.
-- Ask Locco is still rule-based and keyword-driven.
-- Recommendation reasons are generated from deterministic scoring signals, not an LLM explanation.
-- The low-confidence guard is keyword/place/list based and can still miss ambiguous natural language.
-- The map uses OpenStreetMap raster tiles for a no-key MVP.
-- Recommended pins are highlighted only while Ask Locco results are active.
-- The list filter now persists in the URL, but the URL is only updated while the user is on `/app/map`.
-- The compact map navigation is intentionally separate from the full app bottom nav, so nav styling is duplicated lightly for now.
-- Supabase is read-only. Add-place saves, comments, list edits, and persistence are still local/future work.
-- Supabase falls back to mock data if any required demo read is empty or a query fails.
-- No real authentication or Supabase persistence is connected yet.
-
-## Recommended Next Fixes
-
-- Add a compact mobile place-results drawer after recommendation queries.
-- Add Supabase auth and saved-place persistence.
-- Add proper PWA icons and service worker.

@@ -1,12 +1,25 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PlaceCard } from "@/components/PlaceCard";
+import { PlaceStack } from "@/components/PlaceStack";
 import { getListById } from "@/lib/data/lists";
 import { getPlacesByListId } from "@/lib/data/places";
 
 export const dynamic = "force-dynamic";
 
-export default async function ListDetailPage({ params }: { params: Promise<{ id: string }> }) {
+const palette = {
+  cream: "#DDD3C9",
+  berry: "#ECC4C3",
+  blossom: "#B97D7B",
+  forest: "#575527",
+  ink: "#231F20",
+  softBg: "#FFF8EF",
+};
+
+export default async function ListDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const list = await getListById(id);
   if (!list) notFound();
@@ -14,44 +27,54 @@ export default async function ListDetailPage({ params }: { params: Promise<{ id:
   const places = await getPlacesByListId(list.id);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 pb-24 pt-6">
-      <Link href="/app/lists" className="text-sm font-bold text-tomato">
-        Back to lists
-      </Link>
-
-      <section className="mt-4 rounded-lg bg-white p-5 shadow-sm ring-1 ring-stone-200">
-        <div className="flex items-start gap-4">
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-sm font-black text-white"
-            style={{ backgroundColor: list.color }}
+    <main
+      className="min-h-screen overflow-hidden px-4 pb-40 pt-6 sm:px-6 lg:px-10"
+      style={{ backgroundColor: palette.softBg }}
+    >
+      <div className="mx-auto w-full max-w-7xl">
+        <header className="mb-8 flex items-center justify-between gap-4">
+          <Link
+            href="/app/lists"
+            className="flex h-12 w-12 items-center justify-center rounded-full text-2xl font-black shadow-sm transition hover:-translate-y-0.5"
+            style={{
+              backgroundColor: palette.berry,
+              color: palette.ink,
+            }}
+            aria-label="Back to lists"
           >
-            {list.avatar}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-tomato">{list.ownerName}</p>
-            <h1 className="text-3xl font-black text-ink">{list.name}</h1>
-            <p className="mt-2 text-sm leading-6 text-stone-600">{list.description}</p>
-            <p className="mt-3 text-sm font-bold text-stone-500">{places.length} saved places</p>
-          </div>
-        </div>
+            ‹
+          </Link>
 
-        <Link
-          href={`/app/map?lists=${list.id}`}
-          className="mt-5 inline-flex rounded-full bg-ink px-5 py-3 text-sm font-bold text-white"
-        >
-          View this list on map
-        </Link>
-      </section>
+          <div className="text-center">
+            <p
+              className="text-xs font-black uppercase tracking-[0.2em]"
+              style={{ color: palette.blossom }}
+            >
+              {list.ownerName}'s list
+            </p>
 
-      <section className="mt-5 grid gap-3 sm:grid-cols-2">
-        {places.map((place) => (
-          <PlaceCard
-            key={place.id}
-            place={place}
-            href={`/app/place/${place.id}?from=${encodeURIComponent(`/app/lists/${list.id}`)}`}
-          />
-        ))}
-      </section>
+            <h1
+              className="mt-1 text-2xl font-black leading-tight sm:text-4xl"
+              style={{ color: palette.ink }}
+            >
+              {list.name}
+            </h1>
+          </div>
+
+          <Link
+            href={`/app/map?lists=${list.id}`}
+            className="rounded-full px-5 py-3 text-sm font-black shadow-sm transition hover:-translate-y-0.5"
+            style={{
+              backgroundColor: palette.forest,
+              color: palette.cream,
+            }}
+          >
+            Map
+          </Link>
+        </header>
+
+        <PlaceStack places={places} listId={list.id} />
+      </div>
     </main>
   );
 }
