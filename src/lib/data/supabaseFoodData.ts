@@ -54,6 +54,17 @@ export type SupabaseFoodData = {
   places: FoodPlace[];
 };
 
+export type SupabaseFoodDataFallbackReason =
+  | "missing_env"
+  | "read_failed"
+  | "incomplete_demo_data"
+  | "mapping_failed";
+
+export type SupabaseFoodDataResult = {
+  data: SupabaseFoodData | null;
+  fallbackReason: SupabaseFoodDataFallbackReason | null;
+};
+
 let hasWarnedSupabaseRead = false;
 
 function warnSupabaseFallback(reason: string, error?: unknown) {
@@ -204,9 +215,9 @@ function mapSupabaseRows(data: {
   return { lists, places };
 }
 
-export const getSupabaseFoodData = cache(async function getSupabaseFoodData(): Promise<SupabaseFoodData | null> {
+export const getSupabaseFoodDataResult = cache(async function getSupabaseFoodDataResult(): Promise<SupabaseFoodDataResult> {
   const supabase = createServerSupabaseClient();
-  if (!supabase) return null;
+  if (!supabase) return { data: null, fallbackReason: "missing_env" };
 
   try {
     const [
@@ -251,7 +262,7 @@ export const getSupabaseFoodData = cache(async function getSupabaseFoodData(): P
 
     if (failedResult?.error) {
       warnSupabaseFallback("Supabase read failed", failedResult.error);
-      return null;
+      return { data: null, fallbackReason: "read_failed" };
     }
 
     const rows = {
@@ -266,18 +277,22 @@ export const getSupabaseFoodData = cache(async function getSupabaseFoodData(): P
 
     if (!hasCompleteDemoData(rows)) {
       warnSupabaseFallback("Supabase returned incomplete demo data");
-      return null;
+      return { data: null, fallbackReason: "incomplete_demo_data" };
     }
 
     const mapped = mapSupabaseRows(rows);
     if (!mapped.lists.length || !mapped.places.length) {
       warnSupabaseFallback("Supabase rows could not be mapped into Locco food data");
-      return null;
+      return { data: null, fallbackReason: "mapping_failed" };
     }
 
-    return mapped;
+    return { data: mapped, fallbackReason: null };
   } catch (error) {
     warnSupabaseFallback("Supabase read failed", error);
-    return null;
+    return { data: null, fallbackReason: "read_failed" };
   }
+});
+
+export const getSupabaseFoodData = cache(async function getSupabaseFoodData(): Promise<SupabaseFoodData | null> {
+  return (await getSupabaseFoodDataResult()).data;
 });

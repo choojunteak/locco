@@ -5,7 +5,13 @@ import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/BottomNav";
 import Image from "next/image";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  showDataFallbackWarning = false
+}: {
+  children: React.ReactNode;
+  showDataFallbackWarning?: boolean;
+}) {
   const pathname = usePathname();
   const isMapPage = pathname === "/app/map";
 
@@ -39,6 +45,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
+
+      {showDataFallbackWarning ? (
+        <div className="bg-amber-100 px-4 py-2 text-center text-xs font-bold text-amber-900">
+          Using mock data - Supabase read failed
+        </div>
+      ) : null}
 
       {children}
       {isMapPage ? null : <BottomNav />}
