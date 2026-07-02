@@ -1,13 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { createBrowserSupabaseAuthClient } from "@/lib/supabase/authBrowser";
 
 const signUpSuccessMessage =
   "Account created. Please check your email to confirm your account before signing in.";
 
+function getSafeNextPath() {
+  const nextPath = new URLSearchParams(window.location.search).get("next");
+
+  if (!nextPath || !nextPath.startsWith("/") || nextPath.startsWith("//")) {
+    return "/app/map";
+  }
+
+  return nextPath;
+}
+
 export default function LoginPage() {
+  const router = useRouter();
   const supabase = createBrowserSupabaseAuthClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,7 +46,8 @@ export default function LoginPage() {
     if (error) {
       setErrorMessage(error.message);
     } else {
-      setSuccessMessage("Signed in. You can continue to Locco.");
+      setSuccessMessage("Signed in. Taking you to Locco.");
+      router.replace(getSafeNextPath());
     }
 
     setIsSubmitting(false);
