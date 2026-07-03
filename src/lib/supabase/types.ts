@@ -72,7 +72,10 @@ export type Database = {
           longitude: number;
           price_range: "$" | "$$" | "$$$" | "$$$$";
           notes: string;
+          place_key: string;
           normalized_key: string | null;
+          source: string | null;
+          source_place_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -84,7 +87,10 @@ export type Database = {
           longitude: number;
           price_range: "$" | "$$" | "$$$" | "$$$$";
           notes?: string;
+          place_key: string;
           normalized_key?: string | null;
+          source?: string | null;
+          source_place_id?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["places"]["Insert"]>;

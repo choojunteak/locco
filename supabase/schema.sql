@@ -11,7 +11,7 @@ create table if not exists profiles (
 );
 
 create table if not exists friendships (
-  id text primary key default gen_random_uuid()::text,
+  id uuid primary key default gen_random_uuid(),
   requester_id uuid not null references profiles(id) on delete cascade,
   addressee_id uuid not null references profiles(id) on delete cascade,
   status text not null default 'accepted' check (status in ('pending', 'accepted', 'blocked')),
@@ -21,7 +21,7 @@ create table if not exists friendships (
 );
 
 create table if not exists food_lists (
-  id text primary key default gen_random_uuid()::text,
+  id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references profiles(id) on delete cascade,
   name text not null,
   description text not null default '',
@@ -31,7 +31,7 @@ create table if not exists food_lists (
 );
 
 create table if not exists places (
-  id text primary key default gen_random_uuid()::text,
+  id uuid primary key default gen_random_uuid(),
   name text not null,
   address text not null,
   postal_code text,
@@ -39,14 +39,18 @@ create table if not exists places (
   longitude double precision not null,
   price_range text not null check (price_range in ('$', '$$', '$$$', '$$$$')),
   notes text not null default '',
+  place_key text unique not null,
   normalized_key text unique,
-  created_at timestamptz not null default now()
+  source text,
+  source_place_id text,
+  created_at timestamptz not null default now(),
+  unique (source, source_place_id)
 );
 
 create table if not exists saved_places (
-  id text primary key default gen_random_uuid()::text,
-  list_id text not null references food_lists(id) on delete cascade,
-  place_id text not null references places(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
+  list_id uuid not null references food_lists(id) on delete cascade,
+  place_id uuid not null references places(id) on delete cascade,
   user_id uuid not null references profiles(id) on delete cascade,
   note text,
   status text not null default 'want_to_try' check (status in ('want_to_try', 'tried', 'favourite')),
@@ -56,24 +60,24 @@ create table if not exists saved_places (
 );
 
 create table if not exists place_tags (
-  id text primary key default gen_random_uuid()::text,
-  place_id text not null references places(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
+  place_id uuid not null references places(id) on delete cascade,
   tag text not null,
   tag_type text not null check (tag_type in ('category', 'mood')),
   unique (place_id, tag, tag_type)
 );
 
 create table if not exists comments (
-  id text primary key default gen_random_uuid()::text,
-  place_id text not null references places(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
+  place_id uuid not null references places(id) on delete cascade,
   user_id uuid not null references profiles(id) on delete cascade,
   comment text not null,
   created_at timestamptz not null default now()
 );
 
 create table if not exists place_sources (
-  id text primary key default gen_random_uuid()::text,
-  place_id text not null references places(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
+  place_id uuid not null references places(id) on delete cascade,
   source_type text not null check (source_type in ('tiktok', 'instagram', 'website', 'manual', 'other')),
   url text not null,
   created_at timestamptz not null default now(),
