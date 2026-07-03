@@ -1,15 +1,19 @@
 import { foodLists } from "@/data/mockData";
-import type { FoodPlace, MergedPlace } from "@/types";
+import type { FoodList, FoodPlace, MergedPlace } from "@/types";
 
 export function listNameById(listId: string) {
   return foodLists.find((list) => list.id === listId)?.name ?? listId;
 }
 
-export function listOwnerById(listId: string) {
-  return foodLists.find((list) => list.id === listId)?.ownerName ?? listId;
+export function listOwnerById(listId: string, lists: FoodList[] = foodLists) {
+  return lists.find((list) => list.id === listId)?.ownerName ?? listId;
 }
 
-export function getVisiblePlaces(places: FoodPlace[], selectedListIds: string[]): MergedPlace[] {
+export function getVisiblePlaces(
+  places: FoodPlace[],
+  selectedListIds: string[],
+  lists: FoodList[] = foodLists
+): MergedPlace[] {
   return places
     .filter((place) => place.listIds.some((listId) => selectedListIds.includes(listId)))
     .map((place) => {
@@ -17,7 +21,7 @@ export function getVisiblePlaces(places: FoodPlace[], selectedListIds: string[])
       return {
         ...place,
         selectedListIds: selectedIds,
-        savedBySelected: selectedIds.map(listOwnerById)
+        savedBySelected: selectedIds.map((listId) => listOwnerById(listId, lists))
       };
     });
 }

@@ -12,6 +12,9 @@ type Props = {
   distanceMeters?: number;
   onClose: () => void;
   onSave: () => void;
+  isSaving?: boolean;
+  isSaved?: boolean;
+  saveError?: string | null;
   onViewRecommendations?: () => void;
 };
 
@@ -20,10 +23,14 @@ export function PlaceBottomSheet({
   distanceMeters,
   onClose,
   onSave,
+  isSaving = false,
+  isSaved = false,
+  saveError,
   onViewRecommendations
 }: Props) {
   if (!place) return null;
   const distance = formatDistance(distanceMeters);
+  const saveButtonLabel = isSaving ? "Saving..." : isSaved ? "Saved" : "Save";
 
   return (
     <section className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[48dvh] max-w-xl overflow-y-auto rounded-t-lg bg-white p-4 shadow-soft ring-1 ring-stone-200 bottom-sheet-scroll sm:bottom-4 sm:max-h-[56dvh] sm:rounded-lg">
@@ -89,9 +96,10 @@ export function PlaceBottomSheet({
           <button
             type="button"
             onClick={onSave}
-            className="rounded-full bg-tomato px-3 py-2 text-xs font-bold text-white"
+            disabled={isSaving || isSaved}
+            className="rounded-full bg-tomato px-3 py-2 text-xs font-bold text-white disabled:cursor-wait disabled:opacity-70"
           >
-            Save
+            {saveButtonLabel}
           </button>
           <a
             href={googleMapsLink(place)}
@@ -116,6 +124,9 @@ export function PlaceBottomSheet({
             Details
           </Link>
         </div>
+        {saveError ? (
+          <p className="mt-2 text-xs font-semibold text-tomato">{saveError}</p>
+        ) : null}
       </section>
 
       {place.comments.length ? (

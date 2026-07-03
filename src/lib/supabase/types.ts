@@ -45,6 +45,7 @@ export type Database = {
         Row: {
           id: string;
           owner_id: string;
+          list_key: string | null;
           name: string;
           description: string;
           color: string;
@@ -54,6 +55,7 @@ export type Database = {
         Insert: {
           id?: string;
           owner_id: string;
+          list_key?: string | null;
           name: string;
           description?: string;
           color?: string;
