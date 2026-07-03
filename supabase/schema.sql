@@ -23,6 +23,7 @@ create table if not exists friendships (
 create table if not exists food_lists (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references profiles(id) on delete cascade,
+  list_key text,
   name text not null,
   description text not null default '',
   color text not null default '#f36b4f',
@@ -86,6 +87,10 @@ create table if not exists place_sources (
 
 create index if not exists idx_places_lat_lng on places(latitude, longitude);
 create index if not exists idx_food_lists_owner_id on food_lists(owner_id);
+alter table food_lists add column if not exists list_key text;
+create unique index if not exists idx_food_lists_owner_list_key
+on food_lists(owner_id, list_key)
+where list_key is not null;
 create index if not exists idx_saved_places_list_id on saved_places(list_id);
 create index if not exists idx_saved_places_place_id on saved_places(place_id);
 create index if not exists idx_saved_places_user_id on saved_places(user_id);
@@ -107,6 +112,7 @@ grant select on table
 to anon, authenticated;
 
 grant insert, update on table profiles to authenticated;
+grant insert on table food_lists, places, saved_places to authenticated;
 
 alter table profiles enable row level security;
 alter table food_lists enable row level security;
@@ -121,7 +127,7 @@ create policy "Demo profiles are readable"
 on profiles
 for select
 to anon, authenticated
-using (true);
+using (is_demo = true);
 
 drop policy if exists "Users can read their own profile" on profiles;
 create policy "Users can read their own profile"
@@ -150,7 +156,31 @@ create policy "Demo food lists are readable"
 on food_lists
 for select
 to anon, authenticated
-using (true);
+using (
+  exists (
+    select 1
+    from profiles
+    where profiles.id = food_lists.owner_id
+      and profiles.is_demo = true
+  )
+);
+
+drop policy if exists "Users can read their own food lists" on food_lists;
+create policy "Users can read their own food lists"
+on food_lists
+for select
+to authenticated
+using (owner_id = auth.uid());
+
+drop policy if exists "Users can insert their default food list" on food_lists;
+create policy "Users can insert their default food list"
+on food_lists
+for insert
+to authenticated
+with check (
+  owner_id = auth.uid()
+  and list_key = 'default-saved-places'
+);
 
 drop policy if exists "Demo places are readable" on places;
 create policy "Demo places are readable"
@@ -159,12 +189,51 @@ for select
 to anon, authenticated
 using (true);
 
+drop policy if exists "Authenticated users can insert visible canonical places" on places;
+create policy "Authenticated users can insert visible canonical places"
+on places
+for insert
+to authenticated
+with check (
+  source = 'locco_visible_place'
+  and source_place_id = place_key
+);
+
 drop policy if exists "Demo saved places are readable" on saved_places;
 create policy "Demo saved places are readable"
 on saved_places
 for select
 to anon, authenticated
-using (true);
+using (
+  exists (
+    select 1
+    from profiles
+    where profiles.id = saved_places.user_id
+      and profiles.is_demo = true
+  )
+);
+
+drop policy if exists "Users can read their own saved places" on saved_places;
+create policy "Users can read their own saved places"
+on saved_places
+for select
+to authenticated
+using (user_id = auth.uid());
+
+drop policy if exists "Users can insert saves into their own lists" on saved_places;
+create policy "Users can insert saves into their own lists"
+on saved_places
+for insert
+to authenticated
+with check (
+  user_id = auth.uid()
+  and exists (
+    select 1
+    from food_lists
+    where food_lists.id = saved_places.list_id
+      and food_lists.owner_id = auth.uid()
+  )
+);
 
 drop policy if exists "Demo place tags are readable" on place_tags;
 create policy "Demo place tags are readable"

@@ -9,7 +9,7 @@ import type {
   PlaceStatus
 } from "@/types";
 import { DEMO_USER_ID } from "@/lib/demoIdentity";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseAuthClient } from "@/lib/supabase/authServer";
 import type { Database } from "@/lib/supabase/types";
 
 type ProfileRow = Pick<
@@ -216,7 +216,7 @@ function mapSupabaseRows(data: {
 }
 
 export const getSupabaseFoodDataResult = cache(async function getSupabaseFoodDataResult(): Promise<SupabaseFoodDataResult> {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseAuthClient();
   if (!supabase) return { data: null, fallbackReason: "missing_env" };
 
   try {
