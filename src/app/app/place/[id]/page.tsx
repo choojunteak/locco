@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PlaceCard } from "@/components/PlaceCard";
 import { appleMapsLink, googleMapsLink } from "@/utils/places";
+import { getFoodLists } from "@/lib/data/lists";
 import { getPlaceById } from "@/lib/data/places";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export default async function PlacePage({
 }) {
   const { id } = await params;
   const { from } = await searchParams;
-  const place = await getPlaceById(id);
+  const [place, lists] = await Promise.all([getPlaceById(id), getFoodLists()]);
   if (!place) notFound();
 
   const mergedPlace = { ...place, selectedListIds: place.listIds, savedBySelected: place.savedBy };
@@ -38,7 +39,7 @@ export default async function PlacePage({
         {backLabel}
       </Link>
       <div className="mt-4">
-        <PlaceCard place={mergedPlace} isLarge />
+        <PlaceCard place={mergedPlace} lists={lists} isLarge />
       </div>
       <div className="mt-4 flex flex-wrap gap-3">
         <a

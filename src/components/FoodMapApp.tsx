@@ -48,6 +48,15 @@ function initialsForName(name: string) {
     .join("");
 }
 
+function getInitialSavedPlaceIds(lists: FoodList[], places: FoodPlace[]) {
+  const mineListIds = new Set(lists.filter((list) => list.isMine).map((list) => list.id));
+  return new Set(
+    places
+      .filter((place) => place.listIds.some((listId) => mineListIds.has(listId)))
+      .map((place) => place.id)
+  );
+}
+
 export function FoodMapApp({ foodLists, foodPlaces, initialSelectedListIds }: Props) {
   const router = useRouter();
   const defaultListIds = useMemo(() => foodLists.map((list) => list.id), [foodLists]);
@@ -65,7 +74,9 @@ export function FoodMapApp({ foodLists, foodPlaces, initialSelectedListIds }: Pr
   const [isListDrawerOpen, setIsListDrawerOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [savingPlaceId, setSavingPlaceId] = useState<string | null>(null);
-  const [savedPlaceIds, setSavedPlaceIds] = useState<Set<string>>(() => new Set());
+  const [savedPlaceIds, setSavedPlaceIds] = useState<Set<string>>(() =>
+    getInitialSavedPlaceIds(foodLists, foodPlaces)
+  );
   const [saveError, setSaveError] = useState<string | null>(null);
   const [recommendationSession, setRecommendationSession] = useState<RecommendationPanelState>({
     query: "I'm going to Orchard MRT and I feel like dessert",
@@ -296,7 +307,7 @@ export function FoodMapApp({ foodLists, foodPlaces, initialSelectedListIds }: Pr
         </div>
         <div className="grid gap-2">
           {visiblePlaces.slice(0, 6).map((place) => (
-            <PlaceCard key={place.id} place={place} onSelect={handleSelectPlace} />
+            <PlaceCard key={place.id} place={place} lists={lists} onSelect={handleSelectPlace} />
           ))}
         </div>
       </aside>
@@ -383,6 +394,7 @@ export function FoodMapApp({ foodLists, foodPlaces, initialSelectedListIds }: Pr
 
       <PlaceBottomSheet
         place={selectedPlace}
+        lists={lists}
         distanceMeters={selectedPlaceDistance}
         onClose={() => setSelectedPlace(null)}
         onSave={handleSaveSelectedPlace}

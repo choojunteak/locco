@@ -15,7 +15,8 @@ export async function getPlaceById(placeId: string): Promise<FoodPlace | null> {
 }
 
 export async function getPlacesForSelectedLists(listIds: string[]): Promise<MergedPlace[]> {
-  return getVisiblePlaces(await getAllFoodPlaces(), listIds);
+  const [lists, places] = await Promise.all([getFoodLists(), getAllFoodPlaces()]);
+  return getVisiblePlaces(places, listIds, lists);
 }
 
 export async function getPlacesByListId(listId: string): Promise<MergedPlace[]> {
