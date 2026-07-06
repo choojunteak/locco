@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { MergedPlace, RecommendationResult } from "@/types";
+import type { FoodList, MergedPlace, RecommendationResult } from "@/types";
 import { formatDistance } from "@/utils/distance";
 import { appleMapsLink, googleMapsLink } from "@/utils/places";
 import { FriendAvatarStack } from "@/components/FriendAvatarStack";
@@ -9,12 +9,13 @@ import { TagChip } from "@/components/TagChip";
 
 type Props = {
   place: MergedPlace | RecommendationResult;
+  lists?: FoodList[];
   href?: string;
   onSelect?: (place: MergedPlace) => void;
   isLarge?: boolean;
 };
 
-export function PlaceCard({ place, href, onSelect, isLarge }: Props) {
+export function PlaceCard({ place, lists, href, onSelect, isLarge }: Props) {
   const distance = "distanceMeters" in place ? formatDistance(place.distanceMeters) : null;
   const isClickable = Boolean(onSelect || href);
   const cardBody = (
@@ -30,7 +31,7 @@ export function PlaceCard({ place, href, onSelect, isLarge }: Props) {
           </h3>
           <p className="mt-1 text-sm leading-5 text-stone-600">{place.address}</p>
         </div>
-        <FriendAvatarStack listIds={place.selectedListIds} />
+        <FriendAvatarStack listIds={place.selectedListIds} lists={lists} />
       </div>
       <p className="mt-3 text-sm leading-6 text-stone-700">{place.notes}</p>
       <div className="mt-3 flex flex-wrap gap-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { MergedPlace } from "@/types";
+import type { FoodList, MergedPlace } from "@/types";
 import { formatDistance } from "@/utils/distance";
 import { appleMapsLink, googleMapsLink } from "@/utils/places";
 import { FriendAvatarStack } from "@/components/FriendAvatarStack";
@@ -9,6 +9,7 @@ import { TagChip } from "@/components/TagChip";
 
 type Props = {
   place: MergedPlace | null;
+  lists?: FoodList[];
   distanceMeters?: number;
   onClose: () => void;
   onSave: () => void;
@@ -20,6 +21,7 @@ type Props = {
 
 export function PlaceBottomSheet({
   place,
+  lists,
   distanceMeters,
   onClose,
   onSave,
@@ -69,7 +71,7 @@ export function PlaceBottomSheet({
 
       <section className="mt-3 border-t border-stone-100 pt-3">
         <div className="flex items-center gap-3">
-          <FriendAvatarStack listIds={place.selectedListIds} />
+          <FriendAvatarStack listIds={place.selectedListIds} lists={lists} />
           <p className="text-sm font-semibold text-stone-600">
             Saved by {place.savedBySelected.join(", ")}
           </p>

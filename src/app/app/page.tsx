@@ -53,7 +53,7 @@ export default async function AppHomePage() {
         <h2 className="mb-3 text-xl font-black text-ink">Favourite saves</h2>
         <div className="grid gap-3 lg:grid-cols-3">
           {favourites.map((place) => (
-            <PlaceCard key={place.id} place={place} />
+            <PlaceCard key={place.id} place={place} lists={foodLists} />
           ))}
         </div>
       </section>

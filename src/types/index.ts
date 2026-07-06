@@ -1,4 +1,5 @@
 export type FoodCategory =
+  | "Saved Spot"
   | "Cafe"
   | "Dessert"
   | "Japanese"
