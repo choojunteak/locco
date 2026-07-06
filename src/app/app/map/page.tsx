@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function MapPage({
   searchParams
 }: {
-  searchParams: Promise<{ lists?: string }>;
+  searchParams: Promise<{ lists?: string; place?: string }>;
 }) {
   const params = await searchParams;
   const initialSelectedListIds = params.lists?.split(",").filter(Boolean);
@@ -18,6 +18,7 @@ export default async function MapPage({
       foodLists={foodLists}
       foodPlaces={foodPlaces}
       initialSelectedListIds={initialSelectedListIds}
+      initialFocusedPlaceId={params.place}
     />
   );
 }

@@ -23,6 +23,7 @@ type Props = {
   foodLists: FoodList[];
   foodPlaces: FoodPlace[];
   initialSelectedListIds?: string[];
+  initialFocusedPlaceId?: string;
 };
 
 type SavePlaceResponse = {
@@ -95,7 +96,12 @@ function getInitialSavedPlaceIds(lists: FoodList[], places: FoodPlace[]) {
   );
 }
 
-export function FoodMapApp({ foodLists, foodPlaces, initialSelectedListIds }: Props) {
+export function FoodMapApp({
+  foodLists,
+  foodPlaces,
+  initialSelectedListIds,
+  initialFocusedPlaceId
+}: Props) {
   const router = useRouter();
   const defaultListIds = useMemo(() => foodLists.map((list) => list.id), [foodLists]);
   const [lists, setLists] = useState<FoodList[]>(() => foodLists);
@@ -130,8 +136,23 @@ export function FoodMapApp({ foodLists, foodPlaces, initialSelectedListIds }: Pr
   );
 
   useEffect(() => {
-    router.replace(`/app/map?lists=${selectedListIds.join(",")}`, { scroll: false });
-  }, [router, selectedListIds]);
+    const params = new URLSearchParams();
+    params.set("lists", selectedListIds.join(","));
+
+    if (selectedPlace) {
+      params.set("place", selectedPlace.id);
+    }
+
+    router.replace(`/app/map?${params.toString()}`, { scroll: false });
+  }, [router, selectedListIds, selectedPlace]);
+
+  useEffect(() => {
+    if (!initialFocusedPlaceId) return;
+    const focusedPlace = visiblePlaces.find((place) => place.id === initialFocusedPlaceId);
+    if (focusedPlace) {
+      setSelectedPlace(focusedPlace);
+    }
+  }, [initialFocusedPlaceId, visiblePlaces]);
 
   const selectedPlaceDistance =
     selectedPlace && referencePoint

@@ -3,9 +3,10 @@
 import Link from "next/link";
 import type { FoodList, MergedPlace, RecommendationResult } from "@/types";
 import { formatDistance } from "@/utils/distance";
-import { appleMapsLink, googleMapsLink } from "@/utils/places";
+import { placeSourceLabel } from "@/utils/places";
+import { CompactTagList } from "@/components/CompactTagList";
+import { DirectionsAction } from "@/components/DirectionsAction";
 import { FriendAvatarStack } from "@/components/FriendAvatarStack";
-import { TagChip } from "@/components/TagChip";
 
 type Props = {
   place: MergedPlace | RecommendationResult;
@@ -34,10 +35,13 @@ export function PlaceCard({ place, lists, href, onSelect, isLarge }: Props) {
         <FriendAvatarStack listIds={place.selectedListIds} lists={lists} />
       </div>
       <p className="mt-3 text-sm leading-6 text-stone-700">{place.notes}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {[...place.categories, ...place.moodTags].slice(0, isLarge ? 12 : 5).map((tag) => (
-          <TagChip key={tag} label={tag} />
-        ))}
+      <div className="mt-3">
+        <CompactTagList
+          categories={place.categories}
+          moodTags={place.moodTags}
+          limit={isLarge ? 5 : 4}
+          isOverflowInteractive={!isClickable || Boolean(isLarge)}
+        />
       </div>
       <p className="mt-3 text-xs font-semibold text-stone-500">
         Saved by {place.savedBySelected.join(", ")}
@@ -89,29 +93,16 @@ export function PlaceCard({ place, lists, href, onSelect, isLarge }: Props) {
                 rel="noreferrer"
                 className="rounded-full bg-stone-100 px-3 py-2 text-xs font-bold text-stone-700"
               >
-                {source.type}
+                {placeSourceLabel(source)}
               </a>
             ))}
-            <a
-              href={googleMapsLink(place)}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full bg-ink px-3 py-2 text-xs font-bold text-white"
-            >
-              Google Maps
-            </a>
-            <a
-              href={appleMapsLink(place)}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full bg-white px-3 py-2 text-xs font-bold text-ink ring-1 ring-stone-200"
-            >
-              Apple Maps
-            </a>
+            <DirectionsAction place={place} />
           </div>
-          <Link href={`/app/place/${place.id}`} className="inline-flex text-sm font-bold text-tomato">
-            Permanent place page
-          </Link>
+          {!isLarge ? (
+            <Link href={`/app/place/${place.id}`} className="inline-flex text-sm font-bold text-tomato">
+              Place details
+            </Link>
+          ) : null}
         </div>
       ) : null}
     </article>

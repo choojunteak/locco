@@ -3,9 +3,10 @@
 import Link from "next/link";
 import type { FoodList, MergedPlace } from "@/types";
 import { formatDistance } from "@/utils/distance";
-import { appleMapsLink, googleMapsLink } from "@/utils/places";
+import { placeSourceLabel } from "@/utils/places";
+import { CompactTagList } from "@/components/CompactTagList";
+import { DirectionsAction } from "@/components/DirectionsAction";
 import { FriendAvatarStack } from "@/components/FriendAvatarStack";
-import { TagChip } from "@/components/TagChip";
 
 type Props = {
   place: MergedPlace | null;
@@ -38,11 +39,11 @@ export function PlaceBottomSheet({
   const distance = formatDistance(distanceMeters);
   const isSaveActionBusy = isSaving || isUnsaving;
   const saveButtonLabel = isUnsaving
-    ? "Unsaving..."
+    ? "Removing..."
     : isSaving
       ? "Saving..."
       : isSaved
-        ? "Unsave"
+        ? "Remove from my saved places"
         : "Save";
   const saveButtonClassName = isSaved
     ? "rounded-full bg-white px-3 py-2 text-xs font-bold text-tomato ring-1 ring-tomato disabled:cursor-wait disabled:opacity-70"
@@ -101,10 +102,8 @@ export function PlaceBottomSheet({
 
       <section className="mt-3 border-t border-stone-100 pt-3">
         <p className="text-xs font-black uppercase tracking-wide text-stone-400">Tags</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {[...place.categories, ...place.moodTags].map((tag) => (
-            <TagChip key={tag} label={tag} />
-          ))}
+        <div className="mt-2">
+          <CompactTagList categories={place.categories} moodTags={place.moodTags} limit={4} />
         </div>
       </section>
 
@@ -119,22 +118,7 @@ export function PlaceBottomSheet({
           >
             {saveButtonLabel}
           </button>
-          <a
-            href={googleMapsLink(place)}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-full bg-ink px-3 py-2 text-xs font-bold text-white"
-          >
-            Google Maps
-          </a>
-          <a
-            href={appleMapsLink(place)}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-full bg-white px-3 py-2 text-xs font-bold text-ink ring-1 ring-stone-200"
-          >
-            Apple Maps
-          </a>
+          <DirectionsAction place={place} />
           <Link
             href={`/app/place/${place.id}`}
             className="rounded-full bg-stone-100 px-3 py-2 text-xs font-bold text-stone-700"
@@ -170,7 +154,7 @@ export function PlaceBottomSheet({
                 rel="noreferrer"
                 className="text-xs font-bold text-tomato underline"
               >
-                {source.type} source
+                {placeSourceLabel(source)}
               </a>
             ))}
           </div>
