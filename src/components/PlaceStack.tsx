@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState, type PointerEvent, type WheelEvent } from "react";
+import { loccoMapLink } from "@/utils/places";
 
 const palette = {
   butter: "#FFF1B5",
@@ -22,6 +23,7 @@ const stackColours = [
 
 type PlaceStackPlace = {
   id: string;
+  listIds?: string[];
   name?: string;
   description?: string;
   address?: string;
@@ -391,6 +393,20 @@ export function PlaceStack({ places, listId }: PlaceStackProps) {
                         Open place
                       </Link>
 
+                      <Link
+                        href={loccoMapLink({ id: place.id, listIds: place.listIds ?? [listId] }, [listId])}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onPointerUp={(event) => event.stopPropagation()}
+                        onClick={(event) => event.stopPropagation()}
+                        className="mt-3 flex w-full items-center justify-center rounded-full px-5 py-4 text-sm font-black lg:hidden"
+                        style={{
+                          backgroundColor: "rgba(255, 255, 255, 0.62)",
+                          color: palette.ink,
+                        }}
+                      >
+                        View on Locco map
+                      </Link>
+
                       <p className="mt-3 text-center text-xs font-bold opacity-50">
                         Tap card again to flip back
                       </p>
@@ -434,16 +450,31 @@ export function PlaceStack({ places, listId }: PlaceStackProps) {
           {getPlaceDescription(activePlace)}
         </p>
 
-        <Link
-          href={`/app/place/${activePlace.id}?from=${encodeURIComponent(`/app/lists/${listId}`)}`}
-          className="mt-8 inline-flex rounded-full px-6 py-4 text-sm font-black shadow-sm"
-          style={{
-            backgroundColor: activeIsDark ? palette.butter : palette.forest,
-            color: activeIsDark ? palette.ink : palette.butter,
-          }}
-        >
-          View full place
-        </Link>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            href={`/app/place/${activePlace.id}?from=${encodeURIComponent(`/app/lists/${listId}`)}`}
+            className="inline-flex rounded-full px-6 py-4 text-sm font-black shadow-sm"
+            style={{
+              backgroundColor: activeIsDark ? palette.butter : palette.forest,
+              color: activeIsDark ? palette.ink : palette.butter,
+            }}
+          >
+            View full place
+          </Link>
+          <Link
+            href={loccoMapLink(
+              { id: activePlace.id, listIds: activePlace.listIds ?? [listId] },
+              [listId]
+            )}
+            className="inline-flex rounded-full px-6 py-4 text-sm font-black shadow-sm"
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.62)",
+              color: palette.ink,
+            }}
+          >
+            View on map
+          </Link>
+        </div>
       </aside>
     </section>
   );

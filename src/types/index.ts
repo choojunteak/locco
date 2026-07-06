@@ -43,7 +43,7 @@ export type FoodList = {
 };
 
 export type PlaceSource = {
-  type: "tiktok" | "instagram" | "manual" | "other";
+  type: "tiktok" | "instagram" | "google_maps" | "website" | "manual" | "other";
   url: string;
 };
 

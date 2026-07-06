@@ -95,7 +95,7 @@ function getProfileName(profilesById: Map<string, ProfileRow>, userId: string) {
 }
 
 function mapSourceType(sourceType: PlaceSourceRow["source_type"]): PlaceSource["type"] {
-  return sourceType === "website" ? "other" : sourceType;
+  return sourceType;
 }
 
 function choosePlaceStatus(saves: SavedPlaceRow[]): PlaceStatus {

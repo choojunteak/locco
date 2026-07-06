@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PlaceCard } from "@/components/PlaceCard";
-import { appleMapsLink, googleMapsLink } from "@/utils/places";
+import { loccoMapLink } from "@/utils/places";
 import { getFoodLists } from "@/lib/data/lists";
 import { getPlaceById } from "@/lib/data/places";
 
@@ -35,29 +35,19 @@ export default async function PlacePage({
 
   return (
     <main className="mx-auto max-w-3xl px-4 pb-24 pt-6">
-      <Link href={backHref} className="text-sm font-bold text-tomato">
-        {backLabel}
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link href={backHref} className="text-sm font-bold text-tomato">
+          {backLabel}
+        </Link>
+        <Link
+          href={loccoMapLink(mergedPlace, mergedPlace.selectedListIds)}
+          className="rounded-full bg-[#FFF1B5] px-4 py-2 text-sm font-black text-ink ring-1 ring-[#ECC4C3]"
+        >
+          View on Locco map
+        </Link>
+      </div>
       <div className="mt-4">
         <PlaceCard place={mergedPlace} lists={lists} isLarge />
-      </div>
-      <div className="mt-4 flex flex-wrap gap-3">
-        <a
-          href={googleMapsLink(place)}
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-full bg-ink px-4 py-2 text-sm font-bold text-white"
-        >
-          Open in Google Maps
-        </a>
-        <a
-          href={appleMapsLink(place)}
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-full bg-white px-4 py-2 text-sm font-bold text-ink ring-1 ring-stone-200"
-        >
-          Open in Apple Maps
-        </a>
       </div>
     </main>
   );

@@ -1,5 +1,5 @@
 import { foodLists } from "@/data/mockData";
-import type { FoodList, FoodPlace, MergedPlace } from "@/types";
+import type { FoodCategory, FoodList, FoodPlace, MergedPlace, MoodTag, PlaceSource } from "@/types";
 
 export function listNameById(listId: string) {
   return foodLists.find((list) => list.id === listId)?.name ?? listId;
@@ -68,12 +68,104 @@ export function getCategoryEmoji(category?: string) {
   }
 }
 
-export function googleMapsLink(place: Pick<FoodPlace, "name" | "latitude" | "longitude">) {
-  const query = encodeURIComponent(`${place.name} ${place.latitude},${place.longitude}`);
-  return `https://www.google.com/maps/search/?api=1&query=${query}`;
+type MapsLinkPlace = Partial<Pick<FoodPlace, "name" | "address" | "latitude" | "longitude">>;
+
+function cleanMapText(value?: string) {
+  const trimmed = value?.trim();
+  return trimmed || null;
 }
 
-export function appleMapsLink(place: Pick<FoodPlace, "name" | "latitude" | "longitude">) {
-  const query = encodeURIComponent(place.name);
-  return `https://maps.apple.com/?ll=${place.latitude},${place.longitude}&q=${query}`;
+function hasCoordinates(place: MapsLinkPlace) {
+  return Number.isFinite(place.latitude) && Number.isFinite(place.longitude);
+}
+
+function coordinateQuery(place: MapsLinkPlace) {
+  if (!hasCoordinates(place)) return null;
+  return `${place.latitude},${place.longitude}`;
+}
+
+export function mapSearchQuery(place: MapsLinkPlace) {
+  const name = cleanMapText(place.name);
+  const address = cleanMapText(place.address);
+
+  if (name && address) return `${name}, ${address}`;
+  if (address) return address;
+  if (name) return name;
+  return coordinateQuery(place);
+}
+
+export function googleMapsLink(place: MapsLinkPlace) {
+  const query = mapSearchQuery(place);
+  if (!query) return "https://www.google.com/maps";
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+export function appleMapsLink(place: MapsLinkPlace) {
+  const name = cleanMapText(place.name);
+  const address = cleanMapText(place.address);
+  const coordinates = coordinateQuery(place);
+  const params = new URLSearchParams();
+
+  if (address) {
+    params.set("address", address);
+    params.set("q", name ?? address);
+    return `https://maps.apple.com/?${params.toString()}`;
+  }
+
+  if (coordinates) {
+    params.set("ll", coordinates);
+    params.set("q", name ?? coordinates);
+    return `https://maps.apple.com/?${params.toString()}`;
+  }
+
+  if (name) {
+    params.set("q", name);
+    return `https://maps.apple.com/?${params.toString()}`;
+  }
+
+  return "https://maps.apple.com/";
+}
+
+export function loccoMapLink(place: Pick<FoodPlace, "id" | "listIds">, listIds = place.listIds) {
+  const params = new URLSearchParams();
+  const uniqueListIds = [...new Set(listIds)].filter(Boolean);
+
+  if (uniqueListIds.length) {
+    params.set("lists", uniqueListIds.join(","));
+  }
+
+  params.set("place", place.id);
+  return `/app/map?${params.toString()}`;
+}
+
+export function getCompactPlaceTags(
+  categories: FoodCategory[],
+  moodTags: MoodTag[],
+  limit = 4
+) {
+  const tags = [...new Set([...categories, ...moodTags])];
+
+  return {
+    visibleTags: tags.slice(0, limit),
+    hiddenTags: tags.slice(limit),
+    hiddenCount: Math.max(tags.length - limit, 0)
+  };
+}
+
+export function placeSourceLabel(source: PlaceSource) {
+  switch (source.type) {
+    case "manual":
+      return "Added through Locco";
+    case "instagram":
+      return "Instagram";
+    case "tiktok":
+      return "TikTok";
+    case "google_maps":
+      return "Google Maps";
+    case "website":
+      return "Website";
+    default:
+      return "Source";
+  }
 }
