@@ -23,6 +23,12 @@ type PlaceSnapshot = {
   status?: unknown;
 };
 
+type UnsaveRequest = {
+  placeId?: unknown;
+  listId?: unknown;
+  placeKey?: unknown;
+};
+
 type ValidatedPlaceSnapshot = {
   placeId: string;
   name: string;
@@ -41,13 +47,18 @@ type FoodListRow = Pick<
   Database["public"]["Tables"]["food_lists"]["Row"],
   "id" | "name" | "color"
 >;
+type FoodListIdRow = Pick<Database["public"]["Tables"]["food_lists"]["Row"], "id">;
 type PlaceRow = Pick<
   Database["public"]["Tables"]["places"]["Row"],
   "id" | "place_key"
 >;
+type SavedPlaceListRow = Pick<
+  Database["public"]["Tables"]["saved_places"]["Row"],
+  "list_id"
+>;
 
-function jsonError(message: string, status: number) {
-  return NextResponse.json({ saved: false, error: message }, { status });
+function jsonError(message: string, status: number, resultKey: "saved" | "unsaved" = "saved") {
+  return NextResponse.json({ [resultKey]: false, error: message }, { status });
 }
 
 function cleanString(value: unknown, maxLength = 500) {
@@ -180,6 +191,19 @@ async function findPlaceByKey(
   return data;
 }
 
+async function resolveCanonicalPlaceForUnsave(
+  supabase: NonNullable<Awaited<ReturnType<typeof createServerSupabaseAuthClient>>>,
+  input: { placeId: string; placeKey: string }
+) {
+  if (isValidUuid(input.placeId)) {
+    const existingById = await findPlaceById(supabase, input.placeId);
+    if (existingById) return existingById;
+  }
+
+  if (!input.placeKey) return null;
+  return findPlaceByKey(supabase, input.placeKey);
+}
+
 async function findOrCreatePlace(
   supabase: NonNullable<Awaited<ReturnType<typeof createServerSupabaseAuthClient>>>,
   snapshot: ValidatedPlaceSnapshot
@@ -291,6 +315,23 @@ async function ensureSavedPlace(
   throw error;
 }
 
+async function getOwnedListIds(
+  supabase: NonNullable<Awaited<ReturnType<typeof createServerSupabaseAuthClient>>>,
+  ownerId: string,
+  listId?: string
+) {
+  let query = supabase.from("food_lists").select("id").eq("owner_id", ownerId);
+
+  if (listId) {
+    query = query.eq("id", listId);
+  }
+
+  const { data, error } = await query.returns<FoodListIdRow[]>();
+  if (error) throw error;
+
+  return (data ?? []).map((list) => list.id);
+}
+
 export async function POST(request: Request) {
   let body: PlaceSnapshot;
   try {
@@ -343,5 +384,90 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : "Unknown save error";
     console.warn("[Locco] Save place failed.", { message });
     return jsonError("Could not save this place yet.", 500);
+  }
+}
+
+export async function DELETE(request: Request) {
+  let body: UnsaveRequest;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("Invalid JSON body.", 400, "unsaved");
+  }
+
+  const placeId = cleanString(body.placeId, 120);
+  const listId = cleanString(body.listId, 120);
+  const placeKey = cleanString(body.placeKey, 200);
+
+  if (!placeId) return jsonError("Missing place id.", 400, "unsaved");
+  if (placeId.startsWith("local-")) {
+    return jsonError("Local Add Place entries cannot be persisted yet.", 400, "unsaved");
+  }
+  if (listId && !isValidUuid(listId)) {
+    return jsonError("Invalid list id.", 400, "unsaved");
+  }
+  if (!isValidUuid(placeId) && !placeKey) {
+    return jsonError("Missing place identity.", 400, "unsaved");
+  }
+
+  const profileResult = await getOrCreateCurrentProfile();
+  if (profileResult.reason === "missing_env") {
+    return jsonError("Supabase Auth is not configured for this environment.", 503, "unsaved");
+  }
+  if (!profileResult.hasSession) {
+    return jsonError("Sign in to unsave places.", 401, "unsaved");
+  }
+  if (!profileResult.profile) {
+    return jsonError("Your profile is not ready yet.", 409, "unsaved");
+  }
+
+  const supabase = await createServerSupabaseAuthClient();
+  if (!supabase) {
+    return jsonError("Supabase Auth is not configured for this environment.", 503, "unsaved");
+  }
+
+  try {
+    const place = await resolveCanonicalPlaceForUnsave(supabase, { placeId, placeKey });
+    if (!place) return jsonError("Place was not found.", 404, "unsaved");
+
+    const ownedListIds = await getOwnedListIds(supabase, profileResult.profile.id, listId || undefined);
+    if (listId && !ownedListIds.length) {
+      return jsonError("You can only remove saves from your own lists.", 403, "unsaved");
+    }
+    if (!ownedListIds.length) {
+      return NextResponse.json({
+        unsaved: true,
+        placeId: place.id,
+        removedListIds: []
+      });
+    }
+
+    const { data: removedRows, error } = await supabase
+      .from("saved_places")
+      .delete()
+      .eq("user_id", profileResult.profile.id)
+      .eq("place_id", place.id)
+      .in("list_id", ownedListIds)
+      .select("list_id");
+
+    if (error) throw error;
+
+    const removedListIds = [
+      ...new Set(
+        ((removedRows ?? []) as SavedPlaceListRow[])
+          .map((row) => row.list_id)
+          .filter(Boolean)
+      )
+    ];
+
+    return NextResponse.json({
+      unsaved: true,
+      placeId: place.id,
+      removedListIds
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown unsave error";
+    console.warn("[Locco] Unsave place failed.", { message });
+    return jsonError("Could not unsave this place yet.", 500, "unsaved");
   }
 }
