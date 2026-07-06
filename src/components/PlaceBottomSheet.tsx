@@ -13,7 +13,9 @@ type Props = {
   distanceMeters?: number;
   onClose: () => void;
   onSave: () => void;
+  onUnsave: () => void;
   isSaving?: boolean;
+  isUnsaving?: boolean;
   isSaved?: boolean;
   saveError?: string | null;
   onViewRecommendations?: () => void;
@@ -25,14 +27,26 @@ export function PlaceBottomSheet({
   distanceMeters,
   onClose,
   onSave,
+  onUnsave,
   isSaving = false,
+  isUnsaving = false,
   isSaved = false,
   saveError,
   onViewRecommendations
 }: Props) {
   if (!place) return null;
   const distance = formatDistance(distanceMeters);
-  const saveButtonLabel = isSaving ? "Saving..." : isSaved ? "Saved" : "Save";
+  const isSaveActionBusy = isSaving || isUnsaving;
+  const saveButtonLabel = isUnsaving
+    ? "Unsaving..."
+    : isSaving
+      ? "Saving..."
+      : isSaved
+        ? "Unsave"
+        : "Save";
+  const saveButtonClassName = isSaved
+    ? "rounded-full bg-white px-3 py-2 text-xs font-bold text-tomato ring-1 ring-tomato disabled:cursor-wait disabled:opacity-70"
+    : "rounded-full bg-tomato px-3 py-2 text-xs font-bold text-white disabled:cursor-wait disabled:opacity-70";
 
   return (
     <section className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[48dvh] max-w-xl overflow-y-auto rounded-t-lg bg-white p-4 shadow-soft ring-1 ring-stone-200 bottom-sheet-scroll sm:bottom-4 sm:max-h-[56dvh] sm:rounded-lg">
@@ -69,14 +83,16 @@ export function PlaceBottomSheet({
         </div>
       </div>
 
-      <section className="mt-3 border-t border-stone-100 pt-3">
-        <div className="flex items-center gap-3">
-          <FriendAvatarStack listIds={place.selectedListIds} lists={lists} />
-          <p className="text-sm font-semibold text-stone-600">
-            Saved by {place.savedBySelected.join(", ")}
-          </p>
-        </div>
-      </section>
+      {place.savedBySelected.length ? (
+        <section className="mt-3 border-t border-stone-100 pt-3">
+          <div className="flex items-center gap-3">
+            <FriendAvatarStack listIds={place.selectedListIds} lists={lists} />
+            <p className="text-sm font-semibold text-stone-600">
+              Saved by {place.savedBySelected.join(", ")}
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-3 border-t border-stone-100 pt-3">
         <p className="text-xs font-black uppercase tracking-wide text-stone-400">Notes</p>
@@ -97,9 +113,9 @@ export function PlaceBottomSheet({
         <div className="mt-2 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={onSave}
-            disabled={isSaving || isSaved}
-            className="rounded-full bg-tomato px-3 py-2 text-xs font-bold text-white disabled:cursor-wait disabled:opacity-70"
+            onClick={isSaved ? onUnsave : onSave}
+            disabled={isSaveActionBusy}
+            className={saveButtonClassName}
           >
             {saveButtonLabel}
           </button>

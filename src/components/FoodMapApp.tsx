@@ -37,6 +37,13 @@ type SavePlaceResponse = {
   placeKey?: string;
 };
 
+type UnsavePlaceResponse = {
+  unsaved?: boolean;
+  error?: string;
+  placeId?: string;
+  removedListIds?: string[];
+};
+
 const DEFAULT_SAVED_LIST_COLOR = "#B97D7B";
 
 function initialsForName(name: string) {
@@ -46,6 +53,37 @@ function initialsForName(name: string) {
     .slice(0, 2)
     .map((word) => word[0]?.toUpperCase())
     .join("");
+}
+
+function slugPart(value: string) {
+  const slug = value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-")
+    .slice(0, 120);
+
+  return slug || "place";
+}
+
+function coordinatePart(value: number) {
+  return value.toFixed(5).replace("-", "m").replace(".", "p");
+}
+
+function placeKeyForFoodPlace(
+  place: Pick<FoodPlace, "name" | "postalCode" | "latitude" | "longitude">
+) {
+  const namePart = slugPart(place.name);
+  const postalPart = place.postalCode?.replace(/\D/g, "");
+
+  if (postalPart) {
+    return `${namePart}-${postalPart}`;
+  }
+
+  return `${namePart}-lat${coordinatePart(place.latitude)}-lng${coordinatePart(place.longitude)}`;
 }
 
 function getInitialSavedPlaceIds(lists: FoodList[], places: FoodPlace[]) {
@@ -74,6 +112,7 @@ export function FoodMapApp({ foodLists, foodPlaces, initialSelectedListIds }: Pr
   const [isListDrawerOpen, setIsListDrawerOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [savingPlaceId, setSavingPlaceId] = useState<string | null>(null);
+  const [unsavingPlaceId, setUnsavingPlaceId] = useState<string | null>(null);
   const [savedPlaceIds, setSavedPlaceIds] = useState<Set<string>>(() =>
     getInitialSavedPlaceIds(foodLists, foodPlaces)
   );
@@ -146,6 +185,16 @@ export function FoodMapApp({ foodLists, foodPlaces, initialSelectedListIds }: Pr
     );
   }
 
+  function getSavedByForListIds(listIds: string[]) {
+    return [
+      ...new Set(
+        listIds
+          .map((listId) => lists.find((list) => list.id === listId)?.ownerName)
+          .filter((ownerName): ownerName is string => Boolean(ownerName))
+      )
+    ];
+  }
+
   function markPlaceSaved(placeId: string, list: FoodList, savedByDisplayName: string) {
     setSavedPlaceIds((current) => new Set(current).add(placeId));
     setSelectedListIds((current) => (current.includes(list.id) ? current : [...current, list.id]));
@@ -198,8 +247,60 @@ export function FoodMapApp({ foodLists, foodPlaces, initialSelectedListIds }: Pr
     markPlaceSaved(place.id, demoList, DEMO_USER_DISPLAY_NAME);
   }
 
+  function markPlaceUnsaved(placeId: string, canonicalPlaceId: string, removedListIds: string[]) {
+    const removedListIdSet = new Set(removedListIds);
+
+    setSavedPlaceIds((current) => {
+      const next = new Set(current);
+      next.delete(placeId);
+      next.delete(canonicalPlaceId);
+      return next;
+    });
+
+    setPlaces((current) =>
+      current.map((place) => {
+        if (place.id !== placeId && place.id !== canonicalPlaceId) return place;
+
+        const listIds = place.listIds.filter((listId) => !removedListIdSet.has(listId));
+        return {
+          ...place,
+          listIds,
+          savedBy: getSavedByForListIds(listIds)
+        };
+      })
+    );
+
+    setSelectedPlace((current) => {
+      if (!current || (current.id !== placeId && current.id !== canonicalPlaceId)) return current;
+
+      const listIds = current.listIds.filter((listId) => !removedListIdSet.has(listId));
+      const selectedListIds = current.selectedListIds.filter(
+        (listId) => !removedListIdSet.has(listId)
+      );
+
+      return {
+        ...current,
+        listIds,
+        savedBy: getSavedByForListIds(listIds),
+        selectedListIds,
+        savedBySelected: getSavedByForListIds(selectedListIds)
+      };
+    });
+  }
+
+  function getOwnedListIdsForPlace(place: FoodPlace) {
+    const mineListIds = new Set(lists.filter((list) => list.isMine).map((list) => list.id));
+    return place.listIds.filter((listId) => mineListIds.has(listId));
+  }
+
+  function unsaveLocallyFromMineLists(place: MergedPlace) {
+    markPlaceUnsaved(place.id, place.id, getOwnedListIdsForPlace(place));
+  }
+
   async function handleSaveSelectedPlace() {
-    if (!selectedPlace || savingPlaceId === selectedPlace.id) return;
+    if (!selectedPlace || savingPlaceId === selectedPlace.id || unsavingPlaceId === selectedPlace.id) {
+      return;
+    }
 
     if (selectedPlace.id.startsWith("local-")) {
       setSaveError("Add Place entries stay local for now.");
@@ -256,6 +357,50 @@ export function FoodMapApp({ foodLists, foodPlaces, initialSelectedListIds }: Pr
       setSaveError("Could not save this place yet.");
     } finally {
       setSavingPlaceId((current) => (current === placeBeingSaved.id ? null : current));
+    }
+  }
+
+  async function handleUnsaveSelectedPlace() {
+    if (!selectedPlace || savingPlaceId === selectedPlace.id || unsavingPlaceId === selectedPlace.id) {
+      return;
+    }
+
+    const placeBeingUnsaved = selectedPlace;
+    const fallbackRemovedListIds = getOwnedListIdsForPlace(placeBeingUnsaved);
+    setUnsavingPlaceId(placeBeingUnsaved.id);
+    setSaveError(null);
+
+    try {
+      const response = await fetch("/api/places/save", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          placeId: placeBeingUnsaved.id,
+          placeKey: placeKeyForFoodPlace(placeBeingUnsaved)
+        })
+      });
+
+      const result = (await response.json().catch(() => null)) as UnsavePlaceResponse | null;
+      if (!response.ok || !result?.unsaved || !result.placeId) {
+        const message = result?.error ?? "Could not unsave this place yet.";
+        if (response.status === 503) {
+          unsaveLocallyFromMineLists(placeBeingUnsaved);
+          setSaveError(null);
+          return;
+        }
+        setSaveError(message);
+        return;
+      }
+
+      const removedListIds = result.removedListIds?.length
+        ? result.removedListIds
+        : fallbackRemovedListIds;
+
+      markPlaceUnsaved(placeBeingUnsaved.id, result.placeId, removedListIds);
+    } catch {
+      setSaveError("Could not unsave this place yet.");
+    } finally {
+      setUnsavingPlaceId((current) => (current === placeBeingUnsaved.id ? null : current));
     }
   }
 
@@ -398,7 +543,9 @@ export function FoodMapApp({ foodLists, foodPlaces, initialSelectedListIds }: Pr
         distanceMeters={selectedPlaceDistance}
         onClose={() => setSelectedPlace(null)}
         onSave={handleSaveSelectedPlace}
+        onUnsave={handleUnsaveSelectedPlace}
         isSaving={savingPlaceId === selectedPlace?.id}
+        isUnsaving={unsavingPlaceId === selectedPlace?.id}
         isSaved={selectedPlace ? savedPlaceIds.has(selectedPlace.id) : false}
         saveError={saveError}
         onViewRecommendations={recommendationSession.results.length ? viewRecommendations : undefined}

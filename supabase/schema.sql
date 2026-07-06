@@ -113,6 +113,7 @@ to anon, authenticated;
 
 grant insert, update on table profiles to authenticated;
 grant insert on table food_lists, places, saved_places to authenticated;
+grant delete on table saved_places to authenticated;
 
 alter table profiles enable row level security;
 alter table food_lists enable row level security;
@@ -226,6 +227,21 @@ on saved_places
 for insert
 to authenticated
 with check (
+  user_id = auth.uid()
+  and exists (
+    select 1
+    from food_lists
+    where food_lists.id = saved_places.list_id
+      and food_lists.owner_id = auth.uid()
+  )
+);
+
+drop policy if exists "Users can delete saves from their own lists" on saved_places;
+create policy "Users can delete saves from their own lists"
+on saved_places
+for delete
+to authenticated
+using (
   user_id = auth.uid()
   and exists (
     select 1
