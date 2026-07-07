@@ -64,6 +64,7 @@ export type FoodPlace = {
   priceRange: "$" | "$$" | "$$$" | "$$$$";
   sources: PlaceSource[];
   notes: string;
+  personalNote?: string;
   comments: PlaceComment[];
   savedBy: string[];
   listIds: string[];

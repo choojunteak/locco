@@ -10,6 +10,7 @@ const DEFAULT_LIST_NAME = "My saved places";
 const DEFAULT_LIST_COLOR = "#B97D7B";
 const VALID_PRICE_RANGES = new Set(["$", "$$", "$$$", "$$$$"]);
 const VALID_STATUSES = new Set(["want_to_try", "visited"]);
+const VALID_RATINGS = new Set([1, 3, 4, 5]);
 
 type PlaceSnapshot = {
   placeId?: unknown;
@@ -21,6 +22,8 @@ type PlaceSnapshot = {
   priceRange?: unknown;
   notes?: unknown;
   status?: unknown;
+  savedNote?: unknown;
+  savedRating?: unknown;
 };
 
 type UnsaveRequest = {
@@ -39,6 +42,8 @@ type ValidatedPlaceSnapshot = {
   priceRange: Database["public"]["Tables"]["places"]["Insert"]["price_range"];
   notes: string;
   status: Database["public"]["Tables"]["saved_places"]["Insert"]["status"];
+  savedNote: string | null;
+  savedRating: number | null;
   placeKey: string;
 };
 
@@ -56,6 +61,7 @@ type SavedPlaceListRow = Pick<
   Database["public"]["Tables"]["saved_places"]["Row"],
   "list_id"
 >;
+type SavedPlaceIdRow = Pick<Database["public"]["Tables"]["saved_places"]["Row"], "id">;
 
 function jsonError(message: string, status: number, resultKey: "saved" | "unsaved" = "saved") {
   return NextResponse.json({ [resultKey]: false, error: message }, { status });
@@ -126,6 +132,7 @@ function validateSnapshot(
   const latitude = parseNumber(body.latitude);
   const longitude = parseNumber(body.longitude);
   const notes = cleanString(body.notes, 1000);
+  const savedNote = cleanString(body.savedNote, 1000) || null;
   const priceRange =
     typeof body.priceRange === "string" && VALID_PRICE_RANGES.has(body.priceRange)
       ? (body.priceRange as PlaceInsert["price_range"])
@@ -134,6 +141,9 @@ function validateSnapshot(
     typeof body.status === "string" && VALID_STATUSES.has(body.status)
       ? (body.status as Database["public"]["Tables"]["saved_places"]["Insert"]["status"])
       : "want_to_try";
+  const parsedRating = parseNumber(body.savedRating);
+  const savedRating =
+    status === "visited" && VALID_RATINGS.has(parsedRating) ? parsedRating : null;
 
   if (!placeId) return { error: "Missing place id." };
   if (!name) return { error: "Missing place name." };
@@ -156,6 +166,8 @@ function validateSnapshot(
       priceRange,
       notes,
       status,
+      savedNote,
+      savedRating,
       placeKey: computePlaceKey({ name, postalCode, latitude, longitude })
     }
   };
@@ -292,6 +304,8 @@ async function ensureSavedPlace(
     placeId: string;
     userId: string;
     status: Database["public"]["Tables"]["saved_places"]["Insert"]["status"];
+    note: string | null;
+    rating: number | null;
   }
 ) {
   const { data: existingSave, error: existingError } = await supabase
@@ -299,19 +313,50 @@ async function ensureSavedPlace(
     .select("id")
     .eq("list_id", input.listId)
     .eq("place_id", input.placeId)
-    .maybeSingle();
+    .eq("user_id", input.userId)
+    .maybeSingle<SavedPlaceIdRow>();
 
   if (existingError) throw existingError;
-  if (existingSave) return;
+  if (existingSave) {
+    const { error } = await supabase
+      .from("saved_places")
+      .update({
+        status: input.status,
+        note: input.note,
+        rating: input.rating
+      } as never)
+      .eq("id", existingSave.id)
+      .eq("user_id", input.userId);
+
+    if (error) throw error;
+    return;
+  }
 
   const { error } = await supabase.from("saved_places").insert({
     list_id: input.listId,
     place_id: input.placeId,
     user_id: input.userId,
-    status: input.status
+    status: input.status,
+    note: input.note,
+    rating: input.rating
   } as never);
 
-  if (!error || error.code === "23505") return;
+  if (!error) return;
+  if (error.code === "23505") {
+    const { error: updateError } = await supabase
+      .from("saved_places")
+      .update({
+        status: input.status,
+        note: input.note,
+        rating: input.rating
+      } as never)
+      .eq("list_id", input.listId)
+      .eq("place_id", input.placeId)
+      .eq("user_id", input.userId);
+
+    if (!updateError) return;
+    throw updateError;
+  }
   throw error;
 }
 
@@ -367,7 +412,9 @@ export async function POST(request: Request) {
       listId: list.id,
       placeId: place.id,
       userId: profileResult.profile.id,
-      status: parsed.value.status
+      status: parsed.value.status,
+      note: parsed.value.savedNote,
+      rating: parsed.value.savedRating
     });
 
     return NextResponse.json({
@@ -378,6 +425,9 @@ export async function POST(request: Request) {
       listColor: list.color,
       savedByDisplayName: profileResult.profile.display_name,
       savedByAvatar: profileResult.profile.avatar_initials,
+      status: parsed.value.status,
+      note: parsed.value.savedNote,
+      rating: parsed.value.savedRating,
       placeKey: place.place_key
     });
   } catch (error) {

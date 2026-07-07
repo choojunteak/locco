@@ -1,20 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import type { FoodList, MergedPlace } from "@/types";
+import type { FoodList, MergedPlace, PlaceStatus } from "@/types";
 import { formatDistance } from "@/utils/distance";
 import { placeSourceLabel } from "@/utils/places";
 import { CompactTagList } from "@/components/CompactTagList";
 import { DirectionsAction } from "@/components/DirectionsAction";
 import { FriendAvatarStack } from "@/components/FriendAvatarStack";
+import { PlaceSaveStatusControls } from "@/components/PlaceSaveStatusControls";
 
 type Props = {
   place: MergedPlace | null;
   lists?: FoodList[];
   distanceMeters?: number;
   onClose: () => void;
-  onSave: () => void;
-  onUnsave: () => void;
+  onStartSave: (status: PlaceStatus) => void;
   isSaving?: boolean;
   isUnsaving?: boolean;
   isSaved?: boolean;
@@ -27,8 +27,7 @@ export function PlaceBottomSheet({
   lists,
   distanceMeters,
   onClose,
-  onSave,
-  onUnsave,
+  onStartSave,
   isSaving = false,
   isUnsaving = false,
   isSaved = false,
@@ -38,16 +37,6 @@ export function PlaceBottomSheet({
   if (!place) return null;
   const distance = formatDistance(distanceMeters);
   const isSaveActionBusy = isSaving || isUnsaving;
-  const saveButtonLabel = isUnsaving
-    ? "Removing..."
-    : isSaving
-      ? "Saving..."
-      : isSaved
-        ? "Remove from my saved places"
-        : "Save";
-  const saveButtonClassName = isSaved
-    ? "rounded-full bg-white px-3 py-2 text-xs font-bold text-tomato ring-1 ring-tomato disabled:cursor-wait disabled:opacity-70"
-    : "rounded-full bg-tomato px-3 py-2 text-xs font-bold text-white disabled:cursor-wait disabled:opacity-70";
 
   return (
     <section className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[48dvh] max-w-xl overflow-y-auto rounded-t-lg bg-white p-4 shadow-soft ring-1 ring-stone-200 bottom-sheet-scroll sm:bottom-4 sm:max-h-[56dvh] sm:rounded-lg">
@@ -81,6 +70,13 @@ export function PlaceBottomSheet({
           </p>
           <h2 className="mt-1 text-xl font-black leading-tight text-ink">{place.name}</h2>
           <p className="mt-1 text-sm leading-5 text-stone-600">{place.address}</p>
+          <PlaceSaveStatusControls
+            status={place.status}
+            isSaved={isSaved}
+            isBusy={isSaveActionBusy}
+            onSelectStatus={onStartSave}
+            className="mt-3"
+          />
         </div>
       </div>
 
@@ -110,14 +106,6 @@ export function PlaceBottomSheet({
       <section className="mt-3 border-t border-stone-100 pt-3">
         <p className="text-xs font-black uppercase tracking-wide text-stone-400">Actions</p>
         <div className="mt-2 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={isSaved ? onUnsave : onSave}
-            disabled={isSaveActionBusy}
-            className={saveButtonClassName}
-          >
-            {saveButtonLabel}
-          </button>
           <DirectionsAction place={place} />
           <Link
             href={`/app/place/${place.id}`}

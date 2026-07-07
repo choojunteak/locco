@@ -1,22 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import type { FoodList, MergedPlace, RecommendationResult } from "@/types";
+import type { FoodList, MergedPlace, PlaceStatus, RecommendationResult } from "@/types";
 import { formatDistance } from "@/utils/distance";
 import { placeSourceLabel } from "@/utils/places";
 import { CompactTagList } from "@/components/CompactTagList";
 import { DirectionsAction } from "@/components/DirectionsAction";
 import { FriendAvatarStack } from "@/components/FriendAvatarStack";
+import { PlaceSaveStatusControls } from "@/components/PlaceSaveStatusControls";
 
 type Props = {
   place: MergedPlace | RecommendationResult;
   lists?: FoodList[];
   href?: string;
   onSelect?: (place: MergedPlace) => void;
+  onSelectStatus?: (place: MergedPlace, status: PlaceStatus) => void;
+  showSaveStatusControls?: boolean;
+  isSaved?: boolean;
+  isSaveBusy?: boolean;
   isLarge?: boolean;
 };
 
-export function PlaceCard({ place, lists, href, onSelect, isLarge }: Props) {
+export function PlaceCard({
+  place,
+  lists,
+  href,
+  onSelect,
+  onSelectStatus,
+  showSaveStatusControls = false,
+  isSaved = true,
+  isSaveBusy = false,
+  isLarge
+}: Props) {
   const distance = "distanceMeters" in place ? formatDistance(place.distanceMeters) : null;
   const isClickable = Boolean(onSelect || href);
   const cardBody = (
@@ -55,6 +70,21 @@ export function PlaceCard({ place, lists, href, onSelect, isLarge }: Props) {
         isClickable ? "transition hover:-translate-y-0.5 hover:shadow-soft" : ""
       }`}
     >
+      {showSaveStatusControls ? (
+        <PlaceSaveStatusControls
+          status={place.status}
+          isSaved={isSaved}
+          isBusy={isSaveBusy}
+          size={isLarge ? "md" : "sm"}
+          onSelectStatus={
+            onSelectStatus
+              ? (status) => onSelectStatus(place, status)
+              : undefined
+          }
+          className="mb-3"
+        />
+      ) : null}
+
       {href && !onSelect ? (
         <Link
           href={href}
