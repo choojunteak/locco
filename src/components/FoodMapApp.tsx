@@ -4,7 +4,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEMO_LIST_ID, DEMO_USER_DISPLAY_NAME } from "@/lib/demoIdentity";
-import type { FoodList, FoodPlace, MergedPlace, OneMapResult, RecommendationResult } from "@/types";
+import type {
+  FoodList,
+  FoodPlace,
+  MergedPlace,
+  OneMapResult,
+  PlaceStatus,
+  RecommendationResult
+} from "@/types";
 import { distanceMeters } from "@/utils/distance";
 import { getVisiblePlaces } from "@/utils/places";
 import { AddPlaceModal } from "@/components/AddPlaceModal";
@@ -16,6 +23,7 @@ import { ListDrawer } from "@/components/ListDrawer";
 import { MapView } from "@/components/MapView";
 import { PlaceBottomSheet } from "@/components/PlaceBottomSheet";
 import { PlaceCard } from "@/components/PlaceCard";
+import { SaveStatusSheet } from "@/components/SaveStatusSheet";
 import { SearchLocationBox } from "@/components/SearchLocationBox";
 import { SelectedListChips } from "@/components/SelectedListChips";
 
@@ -43,6 +51,13 @@ type UnsavePlaceResponse = {
   error?: string;
   placeId?: string;
   removedListIds?: string[];
+};
+
+type SaveSheetState = {
+  mode: "create" | "edit";
+  status: PlaceStatus;
+  note: string;
+  rating: number | null;
 };
 
 const DEFAULT_SAVED_LIST_COLOR = "#B97D7B";
@@ -119,6 +134,7 @@ export function FoodMapApp({
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [savingPlaceId, setSavingPlaceId] = useState<string | null>(null);
   const [unsavingPlaceId, setUnsavingPlaceId] = useState<string | null>(null);
+  const [saveSheet, setSaveSheet] = useState<SaveSheetState | null>(null);
   const [savedPlaceIds, setSavedPlaceIds] = useState<Set<string>>(() =>
     getInitialSavedPlaceIds(foodLists, foodPlaces)
   );
@@ -216,7 +232,18 @@ export function FoodMapApp({
     ];
   }
 
-  function markPlaceSaved(placeId: string, list: FoodList, savedByDisplayName: string) {
+  function markPlaceSaved(
+    placeId: string,
+    list: FoodList,
+    savedByDisplayName: string,
+    status: PlaceStatus,
+    note: string,
+    rating: number | null
+  ) {
+    const personalNote = note.trim();
+    const nextPersonalNote = personalNote || undefined;
+    const nextRating = status === "visited" && rating ? rating : undefined;
+
     setSavedPlaceIds((current) => new Set(current).add(placeId));
     setSelectedListIds((current) => (current.includes(list.id) ? current : [...current, list.id]));
     setPlaces((current) =>
@@ -227,7 +254,11 @@ export function FoodMapApp({
               listIds: place.listIds.includes(list.id) ? place.listIds : [...place.listIds, list.id],
               savedBy: place.savedBy.includes(savedByDisplayName)
                 ? place.savedBy
-                : [...place.savedBy, savedByDisplayName]
+                : [...place.savedBy, savedByDisplayName],
+              notes: personalNote || place.notes,
+              personalNote: nextPersonalNote,
+              rating: nextRating,
+              status
             }
           : place
       )
@@ -247,13 +278,22 @@ export function FoodMapApp({
               : [...current.selectedListIds, list.id],
             savedBySelected: current.savedBySelected.includes(savedByDisplayName)
               ? current.savedBySelected
-              : [...current.savedBySelected, savedByDisplayName]
+              : [...current.savedBySelected, savedByDisplayName],
+            notes: personalNote || current.notes,
+            personalNote: nextPersonalNote,
+            rating: nextRating,
+            status
           }
         : current
     );
   }
 
-  function saveLocallyToDemoList(place: MergedPlace) {
+  function saveLocallyToDemoList(
+    place: MergedPlace,
+    status: PlaceStatus,
+    note: string,
+    rating: number | null
+  ) {
     const demoList = lists.find((list) => list.id === DEMO_LIST_ID) ?? {
       id: DEMO_LIST_ID,
       name: "My Food List",
@@ -265,7 +305,7 @@ export function FoodMapApp({
     };
 
     addListIfMissing(demoList);
-    markPlaceSaved(place.id, demoList, DEMO_USER_DISPLAY_NAME);
+    markPlaceSaved(place.id, demoList, DEMO_USER_DISPLAY_NAME, status, note, rating);
   }
 
   function markPlaceUnsaved(placeId: string, canonicalPlaceId: string, removedListIds: string[]) {
@@ -318,7 +358,24 @@ export function FoodMapApp({
     markPlaceUnsaved(place.id, place.id, getOwnedListIdsForPlace(place));
   }
 
-  async function handleSaveSelectedPlace() {
+  function openSaveSheetForPlace(place: MergedPlace, status: PlaceStatus) {
+    const isAlreadySaved = savedPlaceIds.has(place.id);
+    setSelectedPlace(place);
+    setSaveError(null);
+    setSaveSheet({
+      mode: isAlreadySaved ? "edit" : "create",
+      status,
+      note: isAlreadySaved ? place.personalNote ?? "" : "",
+      rating: isAlreadySaved ? place.rating ?? null : null
+    });
+  }
+
+  function openSaveSheet(status: PlaceStatus) {
+    if (!selectedPlace) return;
+    openSaveSheetForPlace(selectedPlace, status);
+  }
+
+  async function handleSaveSelectedPlace(status: PlaceStatus, note: string, rating: number | null) {
     if (!selectedPlace || savingPlaceId === selectedPlace.id || unsavingPlaceId === selectedPlace.id) {
       return;
     }
@@ -344,7 +401,10 @@ export function FoodMapApp({
           latitude: placeBeingSaved.latitude,
           longitude: placeBeingSaved.longitude,
           priceRange: placeBeingSaved.priceRange,
-          notes: placeBeingSaved.notes
+          notes: placeBeingSaved.notes,
+          status,
+          savedNote: note,
+          savedRating: status === "visited" ? rating : null
         })
       });
 
@@ -352,8 +412,9 @@ export function FoodMapApp({
       if (!response.ok || !result?.saved || !result.listId) {
         const message = result?.error ?? "Could not save this place yet.";
         if (response.status === 503) {
-          saveLocallyToDemoList(placeBeingSaved);
+          saveLocallyToDemoList(placeBeingSaved, status, note, rating);
           setSaveError(null);
+          setSaveSheet(null);
           return;
         }
         setSaveError(message);
@@ -372,7 +433,8 @@ export function FoodMapApp({
       };
 
       addListIfMissing(savedList);
-      markPlaceSaved(placeBeingSaved.id, savedList, ownerName);
+      markPlaceSaved(placeBeingSaved.id, savedList, ownerName, status, note, rating);
+      setSaveSheet(null);
     } catch {
       setSaveError("Could not save this place yet.");
     } finally {
@@ -406,6 +468,7 @@ export function FoodMapApp({
         if (response.status === 503) {
           unsaveLocallyFromMineLists(placeBeingUnsaved);
           setSaveError(null);
+          setSaveSheet(null);
           return;
         }
         setSaveError(message);
@@ -417,6 +480,7 @@ export function FoodMapApp({
         : fallbackRemovedListIds;
 
       markPlaceUnsaved(placeBeingUnsaved.id, result.placeId, removedListIds);
+      setSaveSheet(null);
     } catch {
       setSaveError("Could not unsave this place yet.");
     } finally {
@@ -472,7 +536,16 @@ export function FoodMapApp({
         </div>
         <div className="grid gap-2">
           {visiblePlaces.slice(0, 6).map((place) => (
-            <PlaceCard key={place.id} place={place} lists={lists} onSelect={handleSelectPlace} />
+            <PlaceCard
+              key={place.id}
+              place={place}
+              lists={lists}
+              onSelect={handleSelectPlace}
+              onSelectStatus={openSaveSheetForPlace}
+              showSaveStatusControls
+              isSaved={savedPlaceIds.has(place.id)}
+              isSaveBusy={savingPlaceId === place.id || unsavingPlaceId === place.id}
+            />
           ))}
         </div>
       </aside>
@@ -562,13 +635,30 @@ export function FoodMapApp({
         lists={lists}
         distanceMeters={selectedPlaceDistance}
         onClose={() => setSelectedPlace(null)}
-        onSave={handleSaveSelectedPlace}
-        onUnsave={handleUnsaveSelectedPlace}
+        onStartSave={openSaveSheet}
         isSaving={savingPlaceId === selectedPlace?.id}
         isUnsaving={unsavingPlaceId === selectedPlace?.id}
         isSaved={selectedPlace ? savedPlaceIds.has(selectedPlace.id) : false}
         saveError={saveError}
         onViewRecommendations={recommendationSession.results.length ? viewRecommendations : undefined}
+      />
+
+      <SaveStatusSheet
+        isOpen={Boolean(saveSheet && selectedPlace)}
+        mode={saveSheet?.mode ?? "create"}
+        placeName={selectedPlace?.name ?? ""}
+        initialStatus={saveSheet?.status ?? "want_to_try"}
+        initialNote={saveSheet?.note ?? ""}
+        initialRating={saveSheet?.rating ?? null}
+        isSaving={savingPlaceId === selectedPlace?.id}
+        isRemoving={unsavingPlaceId === selectedPlace?.id}
+        error={saveError}
+        onClose={() => {
+          if (savingPlaceId || unsavingPlaceId) return;
+          setSaveSheet(null);
+        }}
+        onSave={handleSaveSelectedPlace}
+        onRemove={saveSheet?.mode === "edit" ? handleUnsaveSelectedPlace : undefined}
       />
 
       <AddPlaceModal

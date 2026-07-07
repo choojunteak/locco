@@ -297,6 +297,7 @@ function mapSupabaseRows(data: {
         url: source.url
       }));
       const savedBy = listIds.map((listId) => listsForSavedBy.get(listId)?.ownerName ?? listId);
+      const personalNote = ownSaves.find((save) => save.note)?.note ?? undefined;
 
       return [
         {
@@ -311,10 +312,11 @@ function mapSupabaseRows(data: {
           priceRange: place.price_range,
           sources: sources.length ? sources : matchingMockPlace?.sources ?? [],
           notes:
-            ownSaves.find((save) => save.note)?.note ||
+            personalNote ||
             place.notes ||
             matchingMockPlace?.notes ||
             "Saved to your Locco list.",
+          personalNote,
           comments: comments.length ? comments : matchingMockPlace?.comments ?? [],
           savedBy,
           listIds,

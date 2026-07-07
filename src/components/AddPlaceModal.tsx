@@ -113,7 +113,7 @@ export function AddPlaceModal({ lists, isOpen, onClose, onAddPlace }: Props) {
             <label className="grid gap-1 text-sm font-bold text-stone-700">
               Status
               <select value={status} onChange={(event) => setStatus(event.target.value as PlaceStatus)} className="rounded-lg border border-stone-200 px-3 py-2 font-normal">
-                <option value="want_to_try">Want to Try</option>
+                <option value="want_to_try">Want to try</option>
                 <option value="visited">Visited</option>
               </select>
             </label>
