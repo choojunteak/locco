@@ -32,12 +32,12 @@ export async function getPlacesByListId(listId: string): Promise<MergedPlace[]> 
     }));
 }
 
-export async function getFavouritePlaces(limit = 3): Promise<MergedPlace[]> {
+export async function getVisitedPlaces(limit = 3): Promise<MergedPlace[]> {
   const lists = await getFoodLists();
   const places = await getAllFoodPlaces();
 
   return places
-    .filter((place) => place.status === "favourite")
+    .filter((place) => place.status === "visited")
     .slice(0, limit)
     .map((place) => ({
       ...place,

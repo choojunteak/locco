@@ -2,12 +2,12 @@ import Link from "next/link";
 import { PlaceCard } from "@/components/PlaceCard";
 import { DEMO_USER_DISPLAY_NAME } from "@/lib/demoIdentity";
 import { getFoodLists } from "@/lib/data/lists";
-import { getFavouritePlaces } from "@/lib/data/places";
+import { getVisitedPlaces } from "@/lib/data/places";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppHomePage() {
-  const [foodLists, favourites] = await Promise.all([getFoodLists(), getFavouritePlaces(3)]);
+  const [foodLists, visitedPlaces] = await Promise.all([getFoodLists(), getVisitedPlaces(3)]);
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-24 pt-6">
@@ -50,9 +50,9 @@ export default async function AppHomePage() {
       </section>
 
       <section className="mt-6">
-        <h2 className="mb-3 text-xl font-black text-ink">Favourite saves</h2>
+        <h2 className="mb-3 text-xl font-black text-ink">Visited saves</h2>
         <div className="grid gap-3 lg:grid-cols-3">
-          {favourites.map((place) => (
+          {visitedPlaces.map((place) => (
             <PlaceCard key={place.id} place={place} lists={foodLists} />
           ))}
         </div>

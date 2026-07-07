@@ -42,8 +42,8 @@ export function ChatRecommendationPanel({
     if (result.savedBySelected.length > 1) {
       reasons.push(`is trusted by ${result.savedBySelected.length} selected lists`);
     }
-    if (result.status === "favourite") {
-      reasons.push("is marked as a favourite");
+    if (result.status === "visited") {
+      reasons.push("has been visited");
     }
 
     return reasons.length

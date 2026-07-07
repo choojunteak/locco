@@ -104,7 +104,7 @@ export type Database = {
           place_id: string;
           user_id: string;
           note: string | null;
-          status: "want_to_try" | "tried" | "favourite";
+          status: "want_to_try" | "visited";
           rating: number | null;
           created_at: string;
         };
@@ -114,7 +114,7 @@ export type Database = {
           place_id: string;
           user_id: string;
           note?: string | null;
-          status?: "want_to_try" | "tried" | "favourite";
+          status?: "want_to_try" | "visited";
           rating?: number | null;
           created_at?: string;
         };

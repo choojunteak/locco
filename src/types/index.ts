@@ -30,7 +30,7 @@ export type MoodTag =
   | "Chill"
   | "Comfort Food";
 
-export type PlaceStatus = "want_to_try" | "tried" | "favourite";
+export type PlaceStatus = "want_to_try" | "visited";
 
 export type FoodList = {
   id: string;

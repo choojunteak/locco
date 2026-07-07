@@ -9,7 +9,7 @@ const DEFAULT_LIST_KEY = "default-saved-places";
 const DEFAULT_LIST_NAME = "My saved places";
 const DEFAULT_LIST_COLOR = "#B97D7B";
 const VALID_PRICE_RANGES = new Set(["$", "$$", "$$$", "$$$$"]);
-const VALID_STATUSES = new Set(["want_to_try", "tried", "favourite"]);
+const VALID_STATUSES = new Set(["want_to_try", "visited"]);
 
 type PlaceSnapshot = {
   placeId?: unknown;
