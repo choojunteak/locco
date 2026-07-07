@@ -54,7 +54,7 @@ create table if not exists saved_places (
   place_id uuid not null references places(id) on delete cascade,
   user_id uuid not null references profiles(id) on delete cascade,
   note text,
-  status text not null default 'want_to_try' check (status in ('want_to_try', 'tried', 'favourite')),
+  status text not null default 'want_to_try' check (status in ('want_to_try', 'visited')),
   rating numeric(2, 1) check (rating >= 0 and rating <= 5),
   created_at timestamptz not null default now(),
   unique (list_id, place_id)

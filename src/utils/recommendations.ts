@@ -95,8 +95,7 @@ export function scorePlace(
   score += categoryMatches.length * 50;
   score += moodMatches.length * 30;
   if (place.savedBySelected.length > 1) score += 20;
-  if (place.status === "favourite") score += 20;
-  if (place.status === "tried") score += 10;
+  if (place.status === "visited") score += 10;
   if (placeDistance <= 300) score += 40;
   else if (placeDistance <= 600) score += 25;
   else if (placeDistance <= radiusMeters) score += 10;

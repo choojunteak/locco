@@ -60,7 +60,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Ryan", text: "Feels casual but still date-safe." }],
     savedBy: ["You", "Ryan"],
     listIds: ["list_my", "list_ryan"],
-    status: "tried",
+    status: "visited",
     rating: 4.2
   },
   {
@@ -78,7 +78,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Isabella", text: "Good Orchard dessert fallback." }],
     savedBy: ["Isabella", "You"],
     listIds: ["list_isabella", "list_my"],
-    status: "favourite",
+    status: "visited",
     rating: 4.6
   },
   {
@@ -114,7 +114,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Josh", text: "Good when you need a zero-brain dinner." }],
     savedBy: ["Josh"],
     listIds: ["list_josh"],
-    status: "tried",
+    status: "visited",
     rating: 3.9
   },
   {
@@ -132,7 +132,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Annj", text: "Coffee and brunch plates are consistent." }],
     savedBy: ["Annj", "Ryan"],
     listIds: ["list_annj", "list_ryan"],
-    status: "favourite",
+    status: "visited",
     rating: 4.5
   },
   {
@@ -150,7 +150,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "You", text: "Queue moves faster than expected." }],
     savedBy: ["You", "Josh"],
     listIds: ["list_my", "list_josh"],
-    status: "tried",
+    status: "visited",
     rating: 4.3
   },
   {
@@ -168,7 +168,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Ryan", text: "Better for a casual date than formal dinner." }],
     savedBy: ["Ryan", "You"],
     listIds: ["list_ryan", "list_my"],
-    status: "favourite",
+    status: "visited",
     rating: 4.4
   },
   {
@@ -186,7 +186,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Josh", text: "Go slightly off-peak." }],
     savedBy: ["Josh"],
     listIds: ["list_josh"],
-    status: "tried",
+    status: "visited",
     rating: 4.1
   },
   {
@@ -204,7 +204,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Isabella", text: "Blue milk and pistachio are dependable." }],
     savedBy: ["Isabella", "Ryan"],
     listIds: ["list_isabella", "list_ryan"],
-    status: "favourite",
+    status: "visited",
     rating: 4.7
   },
   {
@@ -222,7 +222,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Annj", text: "Peak pastry list energy." }],
     savedBy: ["Annj", "Isabella"],
     listIds: ["list_annj", "list_isabella"],
-    status: "favourite",
+    status: "visited",
     rating: 4.6
   },
   {
@@ -240,7 +240,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Josh", text: "Best when everyone is hungry." }],
     savedBy: ["Josh", "You"],
     listIds: ["list_josh", "list_my"],
-    status: "tried",
+    status: "visited",
     rating: 4.2
   },
   {
@@ -276,7 +276,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Josh", text: "Good solo dinner." }],
     savedBy: ["Josh"],
     listIds: ["list_josh"],
-    status: "tried",
+    status: "visited",
     rating: 4.0
   },
   {
@@ -294,7 +294,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Isabella", text: "Mango snow ice when the weather is rude." }],
     savedBy: ["Isabella", "You"],
     listIds: ["list_isabella", "list_my"],
-    status: "tried",
+    status: "visited",
     rating: 4.2
   },
   {
@@ -312,7 +312,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Annj", text: "Messy in the correct way." }],
     savedBy: ["Annj", "Josh"],
     listIds: ["list_annj", "list_josh"],
-    status: "favourite",
+    status: "visited",
     rating: 4.5
   },
   {
@@ -330,7 +330,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Isabella", text: "Good when everyone wants something cold." }],
     savedBy: ["Isabella"],
     listIds: ["list_isabella"],
-    status: "tried",
+    status: "visited",
     rating: 4.1
   },
   {
@@ -366,7 +366,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Ryan", text: "Works when the date becomes a double date." }],
     savedBy: ["Ryan"],
     listIds: ["list_ryan"],
-    status: "tried",
+    status: "visited",
     rating: 4.2
   },
   {
@@ -384,7 +384,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Josh", text: "The reliable budget option." }],
     savedBy: ["Josh", "You"],
     listIds: ["list_josh", "list_my"],
-    status: "tried",
+    status: "visited",
     rating: 3.8
   },
   {
@@ -402,7 +402,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Isabella", text: "Waffles are the reason to go." }],
     savedBy: ["Isabella", "Annj"],
     listIds: ["list_isabella", "list_annj"],
-    status: "favourite",
+    status: "visited",
     rating: 4.3
   },
   {
@@ -420,7 +420,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Josh", text: "Good after class or work." }],
     savedBy: ["Josh"],
     listIds: ["list_josh"],
-    status: "tried",
+    status: "visited",
     rating: 4.0
   },
   {
@@ -456,7 +456,7 @@ export const foodPlaces: FoodPlace[] = [
     comments: [{ author: "Annj", text: "Not special, but useful." }],
     savedBy: ["Annj"],
     listIds: ["list_annj"],
-    status: "tried",
+    status: "visited",
     rating: 3.7
   }
 ];

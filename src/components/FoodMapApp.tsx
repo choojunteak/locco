@@ -344,8 +344,7 @@ export function FoodMapApp({
           latitude: placeBeingSaved.latitude,
           longitude: placeBeingSaved.longitude,
           priceRange: placeBeingSaved.priceRange,
-          notes: placeBeingSaved.notes,
-          status: placeBeingSaved.status
+          notes: placeBeingSaved.notes
         })
       });
 

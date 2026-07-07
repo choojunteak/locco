@@ -38,8 +38,10 @@ type PlaceRow = Pick<
 >;
 type SavedPlaceRow = Pick<
   Database["public"]["Tables"]["saved_places"]["Row"],
-  "list_id" | "place_id" | "user_id" | "note" | "status" | "rating" | "created_at"
->;
+  "list_id" | "place_id" | "user_id" | "note" | "rating" | "created_at"
+> & {
+  status: PlaceStatus | "tried" | "favourite" | null;
+};
 type PlaceTagRow = Pick<
   Database["public"]["Tables"]["place_tags"]["Row"],
   "place_id" | "tag" | "tag_type"
@@ -98,9 +100,15 @@ function mapSourceType(sourceType: PlaceSourceRow["source_type"]): PlaceSource["
   return sourceType;
 }
 
+function normalizeSavedPlaceStatus(status: SavedPlaceRow["status"]): PlaceStatus {
+  if (status === "visited" || status === "tried" || status === "favourite") return "visited";
+  return "want_to_try";
+}
+
 function choosePlaceStatus(saves: SavedPlaceRow[]): PlaceStatus {
-  const priority: PlaceStatus[] = ["favourite", "tried", "want_to_try"];
-  return priority.find((status) => saves.some((save) => save.status === status)) ?? "want_to_try";
+  return saves.some((save) => normalizeSavedPlaceStatus(save.status) === "visited")
+    ? "visited"
+    : "want_to_try";
 }
 
 function choosePlaceRating(saves: SavedPlaceRow[]) {
