@@ -26,6 +26,7 @@ C:\Projects\locco
 - TypeScript
 - Tailwind CSS
 - MapLibre GL JS
+- Motion for React
 - Supabase Auth
 - `@supabase/ssr`
 - Server-side OneMap search route
@@ -123,10 +124,32 @@ Current UI:
 - Flippable list-detail cards do not show save/status controls.
 - Non-map `PlaceCard` surfaces hide save/status controls by default unless `showSaveStatusControls` is explicitly opted in.
 
+## Map Place Sheet
+
+The map selected-place sheet is a Motion-based draggable bottom sheet with three snap states:
+
+- `minimized`
+- `mid`
+- `expanded`
+
+Current behavior:
+
+- Opening a place defaults to `mid`.
+- If the sheet is minimized and the user taps another pin, the next selected place stays minimized.
+- Pulling down past minimized closes the sheet.
+- The minimized card shows key place info and a compact `Directions` action.
+- Mid and expanded states show richer place detail content and bottom actions.
+- The minimized height is content-aware and clamped so short place names do not leave excessive blank space while longer names still fit.
+- Map camera padding responds to the sheet snap state so the selected pin stays more visible.
+- Save/status controls, SaveStatusSheet, remove saved place, mock fallback, signed-in saved state, and `/app/map?place=...` focus behavior are preserved.
+
+Implementation note: core mobile gestures should use a proper motion/gesture architecture early. The current sheet uses transform-based Motion dragging and snap offsets instead of fragile patched height/pointer dragging.
+
 ## Place Actions
 
 - Place cards and the map place bottom sheet use one `Directions` action instead of separate Apple/Google buttons.
 - The Directions sheet includes `Copy address`, `Open in Apple Maps`, `Open in Google Maps`, and `Cancel`.
+- `DirectionsAction` renders its overlay through a full-screen portal so it is not clipped by the map sheet.
 - External map queries should prefer place name plus full address. Raw latitude/longitude should only be a fallback when text identity is unavailable.
 
 ## Data Model
@@ -198,12 +221,16 @@ Do not casually run `supabase/seed.sql`. Only run seed or remote SQL when a task
 - Comments, photos, tags, source links, and recommendations need more product polish.
 - Recommendation logic is deterministic keyword matching, not an LLM.
 - Map tiles use OpenStreetMap raster tiles for a no-key MVP.
+- The top search/list filter layout needs a redesign.
+- Bottom Ask Locco, Add, navigation, and map controls need a more cohesive mobile layout.
+- The minimized map sheet height is acceptable for now but still needs to be considered with the bottom map controls.
+- Expanded place detail spacing and section hierarchy can be polished later.
+- Expanded-sheet internal scroll handoff is acceptable now; a fully native nested scroll-to-drag handoff can be revisited if needed.
 - No Google Maps paid API usage and no TikTok, Instagram, or Google Maps scraping is implemented.
 
 ## Near-Term Work
 
 - Keep documentation current as auth, saves, and list flows evolve.
-- Add draggable map place sheet snap states.
 - Redesign place detail pages around the saved-place model.
 - Add list status filters and edit-save flows from list contexts.
 - Expand from the default saved list to a multi-list save model.
