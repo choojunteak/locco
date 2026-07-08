@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import type { FeatureCollection, Point } from "geojson";
+import type { PlaceSheetSnapState } from "@/components/PlaceBottomSheet";
 import type { MergedPlace, OneMapResult } from "@/types";
 
 type Props = {
   places: MergedPlace[];
   highlightedIds: string[];
   selectedPlace: MergedPlace | null;
+  placeSheetSnapState: PlaceSheetSnapState;
   referencePoint: OneMapResult | null;
   onSelectPlace: (place: MergedPlace) => void;
 };
@@ -69,7 +71,32 @@ function toGeoJson(
   };
 }
 
-export function MapView({ places, highlightedIds, selectedPlace, referencePoint, onSelectPlace }: Props) {
+function selectedPlacePadding(snapState: PlaceSheetSnapState) {
+  const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
+  const midPadding = Math.round(Math.min(360, Math.max(250, viewportHeight * 0.4)));
+  const expandedPadding = Math.round(Math.min(640, Math.max(430, viewportHeight * 0.72)));
+
+  return {
+    top: 112,
+    bottom:
+      snapState === "minimized"
+        ? 168
+        : snapState === "expanded"
+          ? expandedPadding
+          : midPadding,
+    left: 48,
+    right: 48
+  };
+}
+
+export function MapView({
+  places,
+  highlightedIds,
+  selectedPlace,
+  placeSheetSnapState,
+  referencePoint,
+  onSelectPlace
+}: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const placesRef = useRef(places);
@@ -328,15 +355,10 @@ export function MapView({ places, highlightedIds, selectedPlace, referencePoint,
     mapRef.current.easeTo({
       center: [selectedPlace.longitude, selectedPlace.latitude],
       zoom: Math.max(mapRef.current.getZoom(), 15.4),
-      padding: {
-        top: 110,
-        bottom: 300,
-        left: 48,
-        right: 48
-      },
+      padding: selectedPlacePadding(placeSheetSnapState),
       duration: 650
     });
-  }, [selectedPlace]);
+  }, [selectedPlace, placeSheetSnapState]);
 
   useEffect(() => {
     if (!mapRef.current || !referencePoint) return;

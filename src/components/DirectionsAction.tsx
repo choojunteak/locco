@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import type { FoodPlace } from "@/types";
 import { appleMapsLink, googleMapsLink } from "@/utils/places";
 
@@ -40,6 +41,64 @@ export function DirectionsAction({ place, className }: Props) {
     setIsOpen(true);
   }
 
+  const directionsSheet =
+    isOpen && typeof document !== "undefined" ? (
+      <div
+        className="fixed inset-0 z-[100] flex items-end justify-center bg-ink/30 px-4 pb-4 backdrop-blur-[2px] sm:items-center sm:pb-0"
+        onClick={() => setIsOpen(false)}
+      >
+        <section
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Directions for ${place.name}`}
+          className="w-full max-w-sm rounded-[2rem] bg-white/95 p-5 shadow-soft ring-1 ring-white/70"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="px-3 pb-3">
+            <h2 className="text-2xl font-black leading-tight text-ink">{place.name}</h2>
+            <p className="mt-2 text-sm leading-5 text-stone-500">{place.address}</p>
+          </div>
+
+          <div className="grid gap-3">
+            <button
+              type="button"
+              onClick={copyAddress}
+              className="rounded-full bg-stone-100 px-5 py-4 text-center text-base font-black text-ink transition hover:bg-stone-200"
+            >
+              {copyStatus === "copied"
+                ? "Address copied"
+                : copyStatus === "failed"
+                  ? "Copy failed"
+                  : "Copy address"}
+            </button>
+            <a
+              href={appleMapsLink(place)}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full bg-stone-100 px-5 py-4 text-center text-base font-black text-ink transition hover:bg-stone-200"
+            >
+              Open in Apple Maps
+            </a>
+            <a
+              href={googleMapsLink(place)}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full bg-stone-100 px-5 py-4 text-center text-base font-black text-ink transition hover:bg-stone-200"
+            >
+              Open in Google Maps
+            </a>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="rounded-full bg-[#ECC4C3] px-5 py-4 text-center text-base font-black text-ink transition hover:-translate-y-0.5"
+            >
+              Cancel
+            </button>
+          </div>
+        </section>
+      </div>
+    ) : null;
+
   return (
     <>
       <button
@@ -53,62 +112,7 @@ export function DirectionsAction({ place, className }: Props) {
         Directions
       </button>
 
-      {isOpen ? (
-        <div
-          className="fixed inset-0 z-[80] flex items-end justify-center bg-ink/30 px-4 pb-4 backdrop-blur-[2px] sm:items-center sm:pb-0"
-          onClick={() => setIsOpen(false)}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Directions for ${place.name}`}
-            className="w-full max-w-sm rounded-[2rem] bg-white/95 p-5 shadow-soft ring-1 ring-white/70"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="px-3 pb-3">
-              <h2 className="text-2xl font-black leading-tight text-ink">{place.name}</h2>
-              <p className="mt-2 text-sm leading-5 text-stone-500">{place.address}</p>
-            </div>
-
-            <div className="grid gap-3">
-              <button
-                type="button"
-                onClick={copyAddress}
-                className="rounded-full bg-stone-100 px-5 py-4 text-center text-base font-black text-ink transition hover:bg-stone-200"
-              >
-                {copyStatus === "copied"
-                  ? "Address copied"
-                  : copyStatus === "failed"
-                    ? "Copy failed"
-                    : "Copy address"}
-              </button>
-              <a
-                href={appleMapsLink(place)}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-full bg-stone-100 px-5 py-4 text-center text-base font-black text-ink transition hover:bg-stone-200"
-              >
-                Open in Apple Maps
-              </a>
-              <a
-                href={googleMapsLink(place)}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-full bg-stone-100 px-5 py-4 text-center text-base font-black text-ink transition hover:bg-stone-200"
-              >
-                Open in Google Maps
-              </a>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="rounded-full bg-[#ECC4C3] px-5 py-4 text-center text-base font-black text-ink transition hover:-translate-y-0.5"
-              >
-                Cancel
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
+      {directionsSheet ? createPortal(directionsSheet, document.body) : null}
     </>
   );
 }
