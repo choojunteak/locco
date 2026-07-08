@@ -1,17 +1,24 @@
 # Locco
 
-Locco is a Singapore-focused social food map MVP. The core idea is: show me food near where I am going, but only from people whose taste I trust.
+Locco is a Singapore-focused social food map MVP. The product promise is simple: food near where the user is going, filtered by people whose taste they trust.
 
-## What It Does
+The app should feel warm, social, and playful. The main experience is browsing trusted friends' saved places, then choosing where to go from a map or a saved-place stack.
 
-- Shows a MapLibre map centered on Singapore.
-- Lets users select and deselect trusted food lists.
-- Displays only places from the currently selected lists.
-- Clusters nearby map pins and splits them as the map zooms in.
-- Opens a mobile-friendly place bottom sheet when a pin is selected.
-- Supports mock add-place flow with local state.
-- Searches OneMap from a server route with local Singapore fallbacks.
-- Provides Ask Locco, a rule-based recommendation assistant with compact map-focused result cards.
+Repo path on this machine:
+
+```text
+C:\Projects\locco
+```
+
+## Current Product Surface
+
+- `/app/map` shows a MapLibre map centered on Singapore with selected trusted lists, clustered pins, OneMap search, Ask Locco recommendations, and a mobile place bottom sheet.
+- `/app/lists` shows friend/list-owner discovery with Locco palette pills and large saved-list cards.
+- `/app/lists/[id]` shows a mobile-first saved-place stack with swipe/scroll navigation and flippable cards.
+- `/app/place/[id]` provides a place detail route foundation.
+- `/login` supports Supabase email-password sign in and sign up.
+- `/app` routes are protected by middleware when Supabase public env values are configured.
+- In no-Supabase local development, the app still runs against mock/demo data.
 
 ## Tech Stack
 
@@ -19,14 +26,23 @@ Locco is a Singapore-focused social food map MVP. The core idea is: show me food
 - TypeScript
 - Tailwind CSS
 - MapLibre GL JS
-- OneMap Singapore search API route
-- Read-only Supabase data access with mock-data fallback
+- Supabase Auth
+- `@supabase/ssr`
+- Server-side OneMap search route
+- Mock food-data fallback for development without Supabase credentials
 
 ## Run Locally
 
-```bash
-npm install
-npm run dev
+Install dependencies:
+
+```powershell
+npm.cmd install
+```
+
+Start the dev server:
+
+```powershell
+npm.cmd run dev
 ```
 
 Then open:
@@ -35,127 +51,162 @@ Then open:
 http://localhost:3000
 ```
 
-Main app page:
+Useful routes:
 
 ```text
 http://localhost:3000/app/map
-```
-
-List detail pages:
-
-```text
+http://localhost:3000/app/lists
 http://localhost:3000/app/lists/list_annj
-```
-
-Open the map with one list selected:
-
-```text
 http://localhost:3000/app/map?lists=list_annj
+http://localhost:3000/login
 ```
 
-On Windows PowerShell, if `npm` is blocked by script policy, use:
+Checks:
 
 ```powershell
-npm.cmd run dev
+npm.cmd run lint
+npm.cmd run build
 ```
 
 ## Environment Variables
 
-Copy `.env.example` to `.env.local` when you are ready to add real integrations.
+The app should remain runnable without Supabase credentials. Add local env values only when testing Supabase-backed auth and persistence.
+
+Allowed public Supabase env variable names:
 
 ```text
-ONEMAP_EMAIL=
-ONEMAP_PASSWORD=
-NEXT_PUBLIC_APP_URL=
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 # Optional legacy fallback:
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-The MVP does not require these values to run. For Supabase reads, Locco prefers `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and still accepts the older `NEXT_PUBLIC_SUPABASE_ANON_KEY` name for compatibility. Do not add `SUPABASE_SERVICE_ROLE_KEY`, `sb_secret_*`, or other private Supabase keys to client-side env variables.
+Do not commit `.env.local`. Do not add service role keys, private Supabase keys, `sb_secret_*` values, tokens, cookies, or other secrets to client-side env variables or documentation.
 
-OneMap search currently uses the public search endpoint and falls back to local known Singapore locations if the live call fails.
+OneMap search is called from `src/app/api/onemap/search/route.ts`. Keep OneMap calls server-side. The current search path can fall back to known Singapore locations if the live call fails.
 
-## Supabase Setup
+## Auth
 
-The project includes a read-only Supabase connection, and the app still runs without Supabase credentials.
+Auth is no longer mocked when Supabase public env values are configured.
 
-1. Create a Supabase project.
-2. Open the Supabase SQL editor.
-3. Run `supabase/schema.sql` to create the MVP tables.
-4. Run `supabase/seed.sql` to insert the current Locco demo lists, places, tags, comments, sources, and saved-place relationships.
-5. Copy `.env.example` to `.env.local` only when you are ready to test Supabase reads locally.
-6. Fill in:
+- `/login` supports email-password sign in and sign up.
+- Supabase Confirm Email is enabled, so newly created accounts may need email confirmation before sign-in.
+- `src/middleware.ts` protects `/app/:path*` when Supabase public env values are available.
+- If Supabase public env values are missing, middleware allows no-Supabase development mode.
+- `POST /api/auth/profile/ensure` calls `getOrCreateCurrentProfile()` and creates a minimal profile safely for the signed-in user when needed.
+- Server auth clients are built with `@supabase/ssr`.
 
-```text
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
-```
+## Saves And Status
 
-If your Supabase project still shows the older public anon key name, you can use `NEXT_PUBLIC_SUPABASE_ANON_KEY=` instead. Do not commit `.env.local`.
+Save persistence exists for signed-in users.
 
-When Supabase env values are present and all demo read queries succeed, `src/lib/data/` reads lists, places, saved-place relationships, tags, comments, and source links from Supabase. If env values are missing, any query fails, or the expected demo data is empty, Locco falls back to `src/data/mockData.ts`.
+- `POST /api/places/save` saves a place for the current signed-in user.
+- Repeated saves are idempotent: an existing saved relationship is updated instead of duplicated.
+- `DELETE /api/places/save` removes only the current user's saved relationship from lists they own.
+- If a saved place needs a personal list, the API creates or reuses the user's private `My saved places` list.
+- Server-side duplicate prevention uses a computed `place_key`.
+- Local Add Place entries with `local-` IDs are still local-only and are not persisted yet.
 
-Current Supabase files:
+Saved-place status model:
 
-- `src/lib/supabase/client.ts` - browser-safe client factory
-- `src/lib/supabase/server.ts` - server read client factory using the public Supabase key
-- `src/lib/supabase/types.ts` - typed database shape matching `schema.sql`
-- `supabase/schema.sql` - MVP database tables for demo owners, lists, places, saves, tags, comments, and sources
-- `supabase/seed.sql` - idempotent seed for the current mock Locco data
-- `src/lib/data/` - data access helpers with read-only Supabase queries and mock fallback
+- `saved_places.status` is `want_to_try` or `visited`.
+- `saved_places.note` is the user's personal note.
+- `saved_places.rating` is the user's personal rating for visited places.
+- `Favourite` is a rating label, not a lifecycle status.
 
-## Testing Supabase And Fallback
+Current UI:
 
-With Supabase enabled:
+- The map place bottom sheet has `Want to try` and `Visited` controls.
+- Choosing `Visited` can store a rating and personal note.
+- Choosing `Want to try` can store a personal note only.
+- The save status sheet can edit an existing save or remove it.
+- Flippable list-detail cards do not show save/status controls.
+- Non-map `PlaceCard` surfaces hide save/status controls by default unless `showSaveStatusControls` is explicitly opted in.
 
-1. Make sure `supabase/schema.sql` and `supabase/seed.sql` have both run successfully.
-2. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to `.env.local`.
-3. Restart the dev server with `npm.cmd run dev`.
-4. Open `/app/map`, `/app/lists`, a list detail page, and a place detail page.
-5. Ask Locco for something like `dessert near Orchard MRT` and confirm recommendations still appear.
+## Place Actions
 
-To test mock fallback:
+- Place cards and the map place bottom sheet use one `Directions` action instead of separate Apple/Google buttons.
+- The Directions sheet includes `Copy address`, `Open in Apple Maps`, `Open in Google Maps`, and `Cancel`.
+- External map queries should prefer place name plus full address. Raw latitude/longitude should only be a fallback when text identity is unavailable.
 
-1. Stop the dev server.
-2. Rename `.env.local` to something like `.env.local.off`, or remove the Supabase values.
-3. Restart with `npm.cmd run dev`.
-4. Confirm the same pages still load and Ask Locco still returns demo recommendations.
+## Data Model
+
+Core entities:
+
+- `places` is the canonical physical food location.
+- `saved_places` is a user's personal relationship to a place.
+- `food_lists` is a list/grouping of saved places.
+- `profiles` stores the minimal display identity Locco needs for ownership and saved-by context.
+
+Food data reads prefer Supabase when auth/env/session state is ready. If env values are missing, there is no session, reads fail, or rows cannot be mapped into Locco food data, the app falls back to `src/data/mockData.ts`.
+
+## RLS And Manual SQL History
+
+`saved_places` is intended to have authenticated `SELECT`, `INSERT`, `DELETE`, and `UPDATE` access under Supabase RLS.
+
+- Authenticated users can read their own saved places.
+- Authenticated users can insert saves only into lists they own.
+- `DELETE` is restricted to the current user's own saves from lists they own.
+- `UPDATE` is restricted to the current user's own saves from lists they own.
+- The `UPDATE` policy uses both `USING` and `WITH CHECK` so a user cannot update an existing save into another user's list or ownership.
+
+Manual remote SQL has previously been applied for `saved_places` `DELETE`/`UPDATE` grants and policies. `supabase/schema.sql` should be treated as the intended reference state for those grants and RLS policies, but do not run remote SQL or seed SQL unless a task explicitly asks for that work.
+
+Current Supabase-related files:
+
+- `src/lib/supabase/env.ts` - public env-name accessors
+- `src/lib/supabase/authBrowser.ts` - browser auth client
+- `src/lib/supabase/authServer.ts` - server auth client
+- `src/lib/supabase/client.ts` - browser-safe data client foundation
+- `src/lib/supabase/server.ts` - server data client foundation
+- `src/lib/supabase/types.ts` - typed database shape
+- `src/lib/auth/currentIdentity.ts` - authenticated identity with demo fallback
+- `src/lib/auth/profile.ts` - current profile read/create helper
+- `src/lib/data/supabaseFoodData.ts` - Supabase food-data mapper with mock fallback
+- `src/lib/data/` - data access helpers
+- `supabase/schema.sql` - database structure reference
+
+Do not casually run `supabase/seed.sql`. Only run seed or remote SQL when a task explicitly asks for it.
 
 ## Important Files
 
 - `src/app/app/map/page.tsx` - main map route
-- `src/components/FoodMapApp.tsx` - main app state and map page composition
-- `src/components/MapView.tsx` - MapLibre map, clustering, pin selection
-- `src/components/ListDrawer.tsx` - compact mobile list selector drawer
-- `src/components/SelectedListChips.tsx` - small selected-list chips on the map
-- `src/components/ChatRecommendationPanel.tsx` - recommendation chat UI
-- `src/utils/recommendations.ts` - rule-based parsing and scoring
-- `src/data/mockData.ts` - mock lists and Singapore food places
-- `src/lib/data/` - read-only Supabase data access with mock fallback
-- `src/lib/supabase/` - Supabase client/server/type foundation
-- `src/app/app/lists/[id]/page.tsx` - list detail route
-- `src/app/api/onemap/search/route.ts` - server-side OneMap search route
+- `src/components/FoodMapApp.tsx` - map page state and composition
+- `src/components/MapView.tsx` - MapLibre map, clustering, and pin selection
+- `src/components/PlaceBottomSheet.tsx` - selected-place mobile sheet
+- `src/components/SaveStatusSheet.tsx` - save/edit/remove status sheet
+- `src/components/PlaceSaveStatusControls.tsx` - `Want to try` / `Visited` controls
+- `src/components/ListDrawer.tsx` - compact list selector drawer
+- `src/components/SelectedListChips.tsx` - selected-list chips on the map
+- `src/components/ChatRecommendationPanel.tsx` - Ask Locco UI
+- `src/utils/recommendations.ts` - rule-based recommendation parsing and scoring
+- `src/app/app/lists/page.tsx` - saved-list discovery route
+- `src/app/app/lists/[id]/page.tsx` - saved-place stack route
+- `src/components/PlaceStack.tsx` - swipe/scroll/flippable card stack
+- `src/app/login/page.tsx` - email-password auth UI
+- `src/middleware.ts` - `/app` route protection
+- `src/app/api/auth/profile/ensure/route.ts` - profile readiness endpoint
+- `src/app/api/places/save/route.ts` - save/unsave persistence endpoint
+- `src/app/api/onemap/search/route.ts` - server-side OneMap search
 - `src/app/api/recommend/route.ts` - recommendation API route
-- `supabase/schema.sql` - planned database structure
-- `supabase/seed.sql` - current mock data as SQL seed data
 
-## Current MVP Limitations
+## Current Limitations
 
-- Authentication is mocked.
-- Supabase reads are read-only and fall back to mock data whenever env values are missing, queries fail, or seeded demo data is incomplete.
-- Places saved through the add modal only live in browser state until refresh.
-- Recommendation logic is deterministic keyword matching, not an LLM yet.
-- Map tiles use OpenStreetMap raster tiles for a simple no-key MVP.
-- OneMap credential/token caching is documented but not required for the current search endpoint.
-- No real TikTok or Instagram scraping is implemented.
+- The app intentionally supports no-Supabase mock/demo mode for local development.
+- Add Place is still local-only and does not persist new places yet.
+- Saves currently target the user's default private saved list rather than a full multi-list save picker.
+- Comments, photos, tags, source links, and recommendations need more product polish.
+- Recommendation logic is deterministic keyword matching, not an LLM.
+- Map tiles use OpenStreetMap raster tiles for a no-key MVP.
+- No Google Maps paid API usage and no TikTok, Instagram, or Google Maps scraping is implemented.
 
-## Next Steps
+## Near-Term Work
 
-- Connect Supabase auth.
-- Persist list saves, comments, tags, and sources.
-- Add friend invitations and list privacy.
-- Replace the rule-based recommender with an LLM-assisted parser while keeping the current scoring function.
-- Add PWA service worker and production icons.
-- Deploy to Vercel.
+- Keep documentation current as auth, saves, and list flows evolve.
+- Add draggable map place sheet snap states.
+- Redesign place detail pages around the saved-place model.
+- Add list status filters and edit-save flows from list contexts.
+- Expand from the default saved list to a multi-list save model.
+- Deepen friend/list browsing.
+- Persist Add Place.
+- Polish photos, comments, recommendations, tags, and source links.
