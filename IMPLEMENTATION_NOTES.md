@@ -4,7 +4,7 @@ These notes capture the current Locco architecture and completed milestones at a
 
 ## Current Architecture
 
-Locco is a Next.js App Router app with TypeScript, Tailwind CSS, MapLibre GL JS, Supabase Auth, `@supabase/ssr`, a server-side OneMap search route, and mock/demo fallback data.
+Locco is a Next.js App Router app with TypeScript, Tailwind CSS, MapLibre GL JS, Motion for React, Supabase Auth, `@supabase/ssr`, a server-side OneMap search route, and mock/demo fallback data.
 
 The app keeps the product model centered on trusted saved places:
 
@@ -34,6 +34,9 @@ Supabase-backed reads and writes are behind clear boundaries. When Supabase publ
 - Directions action foundation: place surfaces use one `Directions` action that opens a sheet with Copy address, Apple Maps, Google Maps, and Cancel. Map links prefer place name plus full address, with coordinates only as fallback identity.
 - Saved place status model: `saved_places.status` is `want_to_try` or `visited`; `note` and `rating` are personal fields; `Favourite` is a rating label.
 - Save status sheet UI: the map place sheet opens a save/edit/remove flow where `Visited` can store rating plus note and `Want to try` stores note only.
+- Map place sheet snap states: the selected-place map sheet uses Motion-based transform dragging with `minimized`, `mid`, and `expanded` snap states. Opening a place defaults to `mid`; switching selected places while minimized preserves minimized state; pulling down past minimized closes the sheet. The minimized card shows key place info and compact Directions, mid/expanded states show richer details and bottom actions, and minimized height is content-aware and clamped.
+- Full-screen Directions overlay: `DirectionsAction` renders through a portal so the overlay is not clipped by the draggable map sheet.
+- Snap-state map padding: map camera padding responds to the selected sheet state so selected pins remain more visible.
 - Visual system refresh: Locco uses Butter, Berry Good, Usu Koubai Blossom, Meadow Mauve, Soldier Green/Forest, and Ink across the current light playful UI.
 - Saved-place RLS/grants: `saved_places` is intended to support authenticated select/insert/delete/update under RLS. Delete and update are restricted to the current user's own saves from lists they own, and update uses both `USING` and `WITH CHECK` to prevent moving a save into another user's list or ownership. Manual remote SQL has previously been applied for the saved-place delete/update grants and policies; `supabase/schema.sql` should reflect the intended reference state.
 
@@ -43,15 +46,21 @@ Supabase-backed reads and writes are behind clear boundaries. When Supabase publ
 - Saves currently go to the user's default private saved list instead of a full multi-list picker.
 - Flippable list-detail cards intentionally do not show save/status controls.
 - Non-map `PlaceCard` surfaces hide save/status controls by default unless explicitly opted in.
+- The map place sheet preserves save/status controls, SaveStatusSheet, remove saved place, mock fallback, signed-in saved state, and `/app/map?place=...` focus behavior.
 - The app must remain runnable without Supabase credentials.
 - OneMap calls should stay server-side.
 - Do not use paid Google Maps APIs or scrape Google Maps, TikTok, or Instagram.
 - Do not add placeholder image files for list covers.
+- Core mobile gestures should be built with a proper motion/gesture architecture early instead of patched height/pointer dragging.
 
 ## Future Work
 
 - Keep docs current as project context changes.
-- Add draggable map place sheet snap states.
+- Redesign the top search/list filter layout.
+- Redesign bottom Ask Locco, Add, navigation, and map controls.
+- Revisit minimized map sheet height alongside the bottom map controls if those controls change.
+- Polish expanded place detail spacing and section hierarchy.
+- Revisit fully native nested scroll-to-drag handoff for expanded sheet content if needed.
 - Redesign place detail pages around canonical places and personal saved-place state.
 - Add list status filters and edit-save flows in list contexts.
 - Expand from default-list saves to a multi-list save model.

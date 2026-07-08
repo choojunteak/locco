@@ -27,6 +27,7 @@ Locco's current product direction is warm, social, and playful rather than dashb
 - Prefer small typed utilities over giant components.
 - Use Tailwind and the existing light, friendly design direction.
 - Keep mobile map interactions comfortable: bottom sheets, chips, compact panels, and touch-friendly targets.
+- Use a proper motion/gesture architecture for core mobile drag interactions early; avoid fragile patched height/pointer dragging for sheet-like surfaces.
 - Do not add placeholder image files for list covers. Wait for live database-backed place images or source thumbnails.
 - Keep saved-list and saved-place UI interactions mobile-first, swipe-friendly, and touch-friendly.
 - Avoid full-width fixed bottom bars unless intentionally needed. Prefer floating rounded navigation pills.
@@ -55,6 +56,12 @@ Current UI direction:
 - On mobile list-detail screens, avoid extra side summaries; let the card stack and card flip carry the interaction.
 - Map save/status controls belong in the place bottom sheet and related save sheet, not on the flippable list-detail cards.
 - Non-map `PlaceCard` surfaces should keep save/status controls hidden unless a specific surface opts in.
+- The map place bottom sheet uses Motion-based transform dragging with minimized, mid, and expanded snap states.
+- The map sheet opens selected places at mid, preserves minimized state when switching selected places, and closes when pulled below minimized.
+- Minimized map sheet content should stay compact: key place info plus compact `Directions`, with content-aware clamped height.
+- Directions overlays must render full-screen and must not be clipped by the map sheet.
+- Top search/list filters and bottom Ask Locco/Add/nav/map controls still need design work; do not redesign them unless the task asks for it.
+- Expanded place detail spacing and internal scroll handoff can be polished later.
 
 ## Useful Commands
 
