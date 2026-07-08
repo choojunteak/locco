@@ -14,6 +14,7 @@
     "@types/geojson": "^7946.0.16",
     "clsx": "^2.1.1",
     "maplibre-gl": "^5.9.0",
+    "motion": "^12.42.2",
     "next": "^15.3.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

@@ -21,7 +21,10 @@ import {
 } from "@/components/ChatRecommendationPanel";
 import { ListDrawer } from "@/components/ListDrawer";
 import { MapView } from "@/components/MapView";
-import { PlaceBottomSheet } from "@/components/PlaceBottomSheet";
+import {
+  PlaceBottomSheet,
+  type PlaceSheetSnapState
+} from "@/components/PlaceBottomSheet";
 import { PlaceCard } from "@/components/PlaceCard";
 import { SaveStatusSheet } from "@/components/SaveStatusSheet";
 import { SearchLocationBox } from "@/components/SearchLocationBox";
@@ -127,6 +130,8 @@ export function FoodMapApp({
     return fromUrl.length ? fromUrl : defaultListIds;
   });
   const [selectedPlace, setSelectedPlace] = useState<MergedPlace | null>(null);
+  const [placeSheetSnapState, setPlaceSheetSnapState] =
+    useState<PlaceSheetSnapState>("mid");
   const [referencePoint, setReferencePoint] = useState<OneMapResult | null>(null);
   const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -186,7 +191,13 @@ export function FoodMapApp({
   }
 
   function handleSelectPlace(place: MergedPlace) {
+    setPlaceSheetSnapState((current) => (selectedPlace ? current : "mid"));
     setSelectedPlace(place);
+  }
+
+  function closeSelectedPlace() {
+    setSelectedPlace(null);
+    setPlaceSheetSnapState("mid");
   }
 
   function handleRecommendationResults(results: RecommendationResult[]) {
@@ -495,6 +506,7 @@ export function FoodMapApp({
           places={visiblePlaces}
           highlightedIds={highlightedIds}
           selectedPlace={selectedPlace}
+          placeSheetSnapState={placeSheetSnapState}
           referencePoint={referencePoint}
           onSelectPlace={handleSelectPlace}
         />
@@ -634,7 +646,9 @@ export function FoodMapApp({
         place={selectedPlace}
         lists={lists}
         distanceMeters={selectedPlaceDistance}
-        onClose={() => setSelectedPlace(null)}
+        snapState={placeSheetSnapState}
+        onSnapStateChange={setPlaceSheetSnapState}
+        onClose={closeSelectedPlace}
         onStartSave={openSaveSheet}
         isSaving={savingPlaceId === selectedPlace?.id}
         isUnsaving={unsavingPlaceId === selectedPlace?.id}
