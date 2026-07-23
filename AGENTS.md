@@ -17,7 +17,7 @@ Locco's current product direction is warm, social, and playful rather than dashb
 - Do not run `supabase/seed.sql` or remote Supabase SQL unless the user explicitly asks for that exact work.
 - Do not touch Vercel or deployment unless requested.
 - Do not scrape Google Maps, TikTok, or Instagram.
-- Do not use paid Google Maps APIs.
+- Do not enable paid provider APIs, keys, billing, or scripts unless the user explicitly requests that exact work.
 - Keep OneMap calls server-side.
 - Do not commit or push without explicit user approval.
 
@@ -37,6 +37,7 @@ Locco's current product direction is warm, social, and playful rather than dashb
 - Canonicalize list IDs through one helper that removes invalid/duplicate values and restores loaded-list order.
 - Do not treat display names as stable owner identity.
 - Do not add a provider, schema, auth, RLS, or persistence change inside an unrelated UI branch.
+- Keep provider-specific search and rendering details behind explicit capability adapters. Locco UUIDs and the server-computed `place_key` remain canonical identity; external provider IDs are namespaced references, and provider-derived display data stays separate from Locco-owned data. Respect provider storage and attribution terms, make paid capabilities independently disableable, keep OneMap and mock fallback paths intentional, and build for confirmed provider directions without silently adding adjacent or speculative features.
 - Distinguish browser-automation limitations from genuine product regressions in verification reports.
 - Do not add placeholder image files for list covers. Wait for live database-backed place images or source thumbnails.
 - Keep saved-list and saved-place UI interactions mobile-first, swipe-friendly, and touch-friendly.
@@ -75,7 +76,7 @@ Current UI direction:
 - Top controls stay available with no selection, minimized, and mid; they are hidden and inert while the map place sheet is expanded.
 - MapLibre attribution must remain visible and clickable, with map-page-only overrides.
 - The current profile control is intentionally presentational until a dedicated profile/immersive-map task makes it functional.
-- Provider research may compare OneMap, Google Places/Maps, and other suitable options, but research is not provider selection and must not leak provider implementation into an unrelated branch.
+- The approved controlled-prototype direction is a Google renderer with ordinary Google Places APIs, while MapLibre remains the OneMap/Locco fallback renderer. This direction is not production activation: provider code, keys, billing, persistence, storage, and attribution work require their own explicitly scoped tasks.
 - Treat route-specific immersive map shell, safe areas, AppShell removal/replacement, document scrolling, and final profile placement as a separate architecture task.
 - Expanded place detail spacing and internal scroll handoff can be polished later.
 

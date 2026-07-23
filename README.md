@@ -12,7 +12,7 @@ C:\Projects\locco
 
 ## Current Product Surface
 
-- `/app/map` shows a MapLibre map centered on Singapore with clustered pins, text-first OneMap search, live trusted-list filtering, Ask Locco recommendations, coordinated top/bottom controls, and a mobile place bottom sheet.
+- `/app/map` shows a MapLibre map centered on Singapore with clustered pins, provider-neutral text-first location search currently backed by OneMap, live trusted-list filtering, Ask Locco recommendations, coordinated top/bottom controls, and a mobile place bottom sheet.
 - `/app/lists` shows friend/list-owner discovery with Locco palette pills and large saved-list cards.
 - `/app/lists/[id]` shows a mobile-first saved-place stack with swipe/scroll navigation and flippable cards.
 - `/app/place/[id]` provides a place detail route foundation.
@@ -29,7 +29,7 @@ C:\Projects\locco
 - Motion for React
 - Supabase Auth
 - `@supabase/ssr`
-- Server-side OneMap search route
+- Provider-neutral server-side location-search route with a OneMap adapter
 - Mock food-data fallback for development without Supabase credentials
 
 ## Run Locally
@@ -84,7 +84,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 Do not commit `.env.local`. Do not add service role keys, private Supabase keys, `sb_secret_*` values, tokens, cookies, or other secrets to client-side env variables or documentation.
 
-OneMap search is called from `src/app/api/onemap/search/route.ts`. Keep OneMap calls server-side. The current search path can fall back to known Singapore locations if the live call fails.
+The client calls the provider-neutral `src/app/api/location-search/route.ts`. OneMap is the active server-side adapter in `src/lib/location-search/providers/onemap.ts`, and known Locco locations remain the local fallback if the live provider is unavailable. OneMap authentication, multi-page fetching, retries, timeout/backoff, and richer error classification are deliberately deferred; complete that hardening before treating OneMap as a dependable production fallback.
+
+The approved controlled-prototype direction is a Google Maps renderer plus ordinary Google Places APIs, with MapLibre retained for the OneMap/Locco fallback mode. Google has not been implemented or activated: this repository does not add a Google key, SDK, script, API route, billing integration, or provider-backed persistence. No schema or canonical-place identity migration is part of the current boundary.
 
 ## Auth
 
@@ -254,7 +256,7 @@ Do not casually run `supabase/seed.sql`. Only run seed or remote SQL when a task
 - `src/components/PlaceBottomSheet.tsx` - selected-place mobile sheet
 - `src/components/SaveStatusSheet.tsx` - save/edit/remove status sheet
 - `src/components/PlaceSaveStatusControls.tsx` - `Want to try` / `Visited` controls
-- `src/components/SearchLocationBox.tsx` - text-first OneMap search UI and request lifecycle
+- `src/components/SearchLocationBox.tsx` - provider-neutral text-first search UI and request lifecycle
 - `src/components/ChatRecommendationPanel.tsx` - Ask Locco UI using the applied map list scope
 - `src/utils/recommendations.ts` - rule-based recommendation parsing and scoring
 - `src/app/app/lists/page.tsx` - saved-list discovery route
@@ -264,7 +266,9 @@ Do not casually run `supabase/seed.sql`. Only run seed or remote SQL when a task
 - `src/middleware.ts` - `/app` route protection
 - `src/app/api/auth/profile/ensure/route.ts` - profile readiness endpoint
 - `src/app/api/places/save/route.ts` - save/unsave persistence endpoint
-- `src/app/api/onemap/search/route.ts` - server-side OneMap search
+- `src/types/locationSearch.ts` - normalized provider-neutral search and renderer-mode contracts
+- `src/lib/location-search/` - local fallback, coordinate validation, active search boundary, and provider adapters
+- `src/app/api/location-search/route.ts` - provider-neutral server-side location search
 - `src/app/api/recommend/route.ts` - recommendation API route
 
 ## Current Limitations
@@ -276,8 +280,10 @@ Do not casually run `supabase/seed.sql`. Only run seed or remote SQL when a task
 - Map Filters currently groups friend lists by display `ownerName`; stable owner IDs and duplicate display-name handling are not implemented.
 - OneMap is primarily a location/address source rather than a comprehensive business-discovery provider.
 - OneMap search currently requests only page 1. The server returns at most 8 merged results and the client displays at most 4.
+- OneMap authentication, retry, timeout/backoff, multi-page fetching, and comprehensive error handling are not implemented, so it is not yet a dependable production fallback.
 - Chain-business coverage may be incomplete, and intermittent upstream failure remains possible.
 - Search autocomplete while typing is not implemented.
+- `SearchLocationBox` declares combobox/list-autocomplete semantics, but its popup still uses native buttons rather than a complete listbox/option pattern, and active-option keyboard semantics are not implemented. This branch does not repair that interaction model; it is deferred to the future search/accessibility redesign.
 - Rich business data such as ratings, photos, opening hours, categories, and comprehensive outlet identity is not implemented.
 - Comments, photos, tags, source links, and recommendations need more product polish.
 - Recommendation logic is deterministic keyword matching, not an LLM.
@@ -286,12 +292,14 @@ Do not casually run `supabase/seed.sql`. Only run seed or remote SQL when a task
 - The profile icon in the top controls is presentational only.
 - Expanded place detail spacing and section hierarchy can be polished later.
 - Expanded-sheet internal scroll handoff is acceptable now; a fully native nested scroll-to-drag handoff can be revisited if needed.
-- No Google Maps paid API usage and no TikTok, Instagram, or Google Maps scraping is implemented.
+- The Google Maps plus ordinary Places direction is approved only for a controlled future prototype. No Google provider code, keys, scripts, billing, network usage, or production activation is implemented.
+- Provider results are normalized for transient search/reference use only; there is no provider-reference schema migration or change to Locco UUID and `place_key` identity.
 
 ## Near-Term Work
 
 - Keep documentation current as auth, saves, and list flows evolve.
-- Investigate `map-search-discovery-flow` without assuming a provider has been selected. Compare OneMap, Google Places/Maps, and other suitable providers where relevant across autocomplete quality, Singapore business coverage, ratings, opening hours, photos, categories, provider IDs, canonical external place identity, pricing/billing controls, and usage/caching/storage/display/attribution requirements. The investigation should also decide whether MapLibre remains the renderer, whether another provider serves search only or maps too, how a draggable/minimizable results sheet behaves, and how an external result becomes a canonical saved Locco place.
+- Build `google-provider-controlled-prototype` behind the provider boundary: use a Google renderer with ordinary Google Places APIs, retain the MapLibre plus OneMap/Locco fallback mode, and keep paid capability activation independently disableable. That task must decide keys, billing controls, storage/display/attribution compliance, provider-ID handling, and prototype kill switches without changing Locco canonical identity by default.
+- Harden the OneMap adapter before production fallback use with authenticated requests, multi-page fetching, retry policy, timeout/backoff, and comprehensive error classification.
 - Keep `map-immersive-header-layout` separate. It should cover a route-specific full-height map shell, removal or replacement of the beige map header, correct `100dvh` and mobile safe-area handling, final top/bottom control placement, removal of document-level map scrolling, the AppShell/map height mismatch, and a real profile surface for Profile ready and Sign out. It should also decide whether a small Locco logo mark remains.
 - Redesign place detail pages around the saved-place model.
 - Add status filtering and a deliberate tag taxonomy/filter model.

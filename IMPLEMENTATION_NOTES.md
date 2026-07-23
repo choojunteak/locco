@@ -4,7 +4,7 @@ These notes capture the current Locco architecture and completed milestones at a
 
 ## Current Architecture
 
-Locco is a Next.js App Router app with TypeScript, Tailwind CSS, MapLibre GL JS, Motion for React, Supabase Auth, `@supabase/ssr`, a server-side OneMap search route, and mock/demo fallback data.
+Locco is a Next.js App Router app with TypeScript, Tailwind CSS, MapLibre GL JS, Motion for React, Supabase Auth, `@supabase/ssr`, a provider-neutral server-side location-search route currently backed by OneMap, and mock/demo fallback data.
 
 The app keeps the product model centered on trusted saved places:
 
@@ -18,7 +18,7 @@ Supabase-backed reads and writes are behind clear boundaries. When Supabase publ
 ## Completed Milestones
 
 - Map MVP: `/app/map` uses MapLibre with Singapore-focused places, clustering, selected-list filtering, selected-list URL persistence, mobile bottom sheets, and compact floating navigation.
-- OneMap search: address search runs through a server route with Singapore fallbacks.
+- Location search boundary: normalized search contracts feed a provider-neutral server route; OneMap is the active adapter and known Singapore locations remain the local fallback.
 - Ask Locco: recommendations use deterministic parsing/scoring and compact map-oriented result cards.
 - List discovery: `/app/lists` uses a friend/list-owner browsing layout with Locco palette pills and large saved-list cards.
 - Saved-place stack: `/app/lists/[id]` uses `PlaceStack` for swipe/scroll navigation, animated stack compression, and tap-to-flip details.
@@ -57,7 +57,7 @@ The map-controls branch changes presentation and list-scope coordination without
 - List scope is canonicalized by filtering the loaded list collection in its existing order. This simultaneously removes invalid IDs, duplicates, and caller-dependent ordering.
 - Bottom-control spacing is centralized in map-specific CSS tokens so Ask Locco/Add, attribution, and navigation share one vertical system instead of independent offsets. MapLibre attribution stays visible, clickable, and scoped to the Locco map page.
 - The profile icon remains a presentational placeholder because authentication actions and profile readiness belong in a real profile surface. That decision is coupled to the later immersive map-shell work, not this PR-sized control branch.
-- OneMap search UI was refined, but search-provider expansion was deferred. Provider choice affects identity, billing, storage, caching, attribution, map rendering, and the path from an external result to a canonical Locco place.
+- The search UI refinement preserved OneMap behavior while leaving provider choice separate from the component contracts. Provider choice affects identity, billing, storage, caching, attribution, map rendering, and the path from an external result to a canonical Locco place.
 - The immersive header remains separate because it requires route-specific shell, `100dvh`, safe-area, and document-scroll decisions. The current `AppShell` header and map-height calculation have a known roughly 24px mismatch.
 - Owner groups currently use `ownerName` only for presentation. Stable owner IDs are still required so duplicate friend display names do not collapse into one group.
 
@@ -71,6 +71,16 @@ Preserved architecture:
 - signed-in saved-state behavior and mock/no-Supabase fallback;
 - Add Place remaining local-only.
 
+## Location Provider Boundary Decisions
+
+- `LocationSearchResult` normalizes provider metadata, result kind, optional namespaced external reference, display fields, postal code, and validated coordinates. Raw OneMap response fields exist only inside the OneMap adapter.
+- The browser calls `/api/location-search`; `src/lib/location-search/providers/onemap.ts` is the active adapter. Known Locco locations retain their existing first-result ordering, the server still caps merged results at 8, and the client still renders at most 4.
+- Search results are transient reference data, not a universal persisted place model. Locco UUIDs and the server-computed `place_key` remain canonical, and no schema or canonical save-reconciliation change was introduced.
+- Search and rendering stay separate. The minimum renderer-mode contract records `onemap-maplibre` and `google` without introducing a renderer framework.
+- The approved controlled-prototype direction is a Google renderer plus ordinary Google Places APIs. MapLibre remains the planned renderer for the OneMap/Locco fallback mode.
+- Google is not implemented or activated here: there is no key, SDK, script, provider route, billing integration, network call, provider persistence, or usage counter.
+- OneMap authentication is deliberately deferred until after the controlled Google prototype, but authenticated requests, multi-page fetching, retry policy, timeout/backoff, and richer error classification are required before OneMap is considered a dependable production fallback.
+
 ## Current Boundaries
 
 - Add Place remains local-only for now; `local-` entries are not persisted by `/api/places/save`.
@@ -81,17 +91,19 @@ Preserved architecture:
 - Non-map `PlaceCard` surfaces hide save/status controls by default unless explicitly opted in.
 - The map place sheet preserves save/status controls, SaveStatusSheet, remove saved place, mock fallback, signed-in saved state, and `/app/map?place=...` focus behavior.
 - The app must remain runnable without Supabase credentials.
-- OneMap calls should stay server-side.
-- Do not use paid Google Maps APIs or scrape Google Maps, TikTok, or Instagram.
+- OneMap calls stay behind the server-side location-search adapter.
+- Paid provider APIs, keys, billing, and scripts stay disabled until an explicitly scoped task; do not scrape Google Maps, TikTok, or Instagram.
 - Do not add placeholder image files for list covers.
 - Core mobile gestures should be built with a proper motion/gesture architecture early instead of patched height/pointer dragging.
 - OneMap currently acts primarily as a location/address source, requests only its first result page, and is capped again by the server and client. Autocomplete, comprehensive chain/outlet coverage, ratings, photos, opening hours, categories, and robust external place identity are not implemented.
+- Provider-derived search fields remain transient and separate from Locco-owned place data; no provider reference is persisted yet.
 - The current map still uses the beige `AppShell` header and has a known roughly 24px AppShell/map height mismatch that can cause document-level scrolling.
 
 ## Future Work
 
 - Keep docs current as project context changes.
-- Investigate `map-search-discovery-flow`, comparing OneMap, Google Places/Maps, and other suitable providers without assuming a winner. Evaluate autocomplete, Singapore business and chain coverage, ratings, opening hours, photos, categories, provider IDs, canonical external identity, pricing/billing controls, usage/caching/storage/display/attribution terms, MapLibre's renderer role, search-only versus map-provider scope, a draggable/minimizable results sheet, and conversion of an external result into a canonical saved Locco place.
+- Build `google-provider-controlled-prototype` behind the location-search boundary using the approved Google renderer plus ordinary Google Places direction. Keep MapLibre plus OneMap/Locco as an intentional fallback mode, make paid capabilities independently disableable, and explicitly resolve keys, billing controls, storage/display/attribution terms, provider references, and kill switches before any production activation.
+- Harden OneMap before production fallback use with authenticated requests, multi-page fetching, retry policy, timeout/backoff, and comprehensive error classification.
 - Keep `map-immersive-header-layout` as a separate branch covering a route-specific full-height map shell, removal or replacement of the beige map header, correct `100dvh`, iOS/Android safe areas, document-scroll removal, the AppShell/map mismatch, final top/bottom control placement, a functional profile surface for Profile ready and Sign out, and whether a small Locco logo mark remains.
 - Polish expanded place detail spacing and section hierarchy.
 - Revisit fully native nested scroll-to-drag handoff for expanded sheet content if needed.

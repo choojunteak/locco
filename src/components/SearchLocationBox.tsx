@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { OneMapResult } from "@/types";
+import type { LocationSearchResult } from "@/types";
 
 type Props = {
-  onSelect: (location: OneMapResult) => void;
+  onSelect: (location: LocationSearchResult) => void;
   onClear: () => void;
 };
 
 export function SearchLocationBox({ onSelect, onClear }: Props) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<OneMapResult[]>([]);
+  const [results, setResults] = useState<LocationSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<string | null>(null);
@@ -40,10 +40,16 @@ export function SearchLocationBox({ onSelect, onClear }: Props) {
     setConfirmed(null);
 
     try {
-      const response = await fetch(`/api/onemap/search?query=${encodeURIComponent(trimmedQuery)}`, {
-        signal: controller.signal
-      });
-      const payload = (await response.json()) as { results?: OneMapResult[]; error?: string };
+      const response = await fetch(
+        `/api/location-search?query=${encodeURIComponent(trimmedQuery)}`,
+        {
+          signal: controller.signal
+        }
+      );
+      const payload = (await response.json()) as {
+        results?: LocationSearchResult[];
+        error?: string;
+      };
       if (!response.ok) throw new Error(payload.error ?? "Search failed.");
       if (requestGeneration !== requestGenerationRef.current) return;
       setResults(payload.results ?? []);
@@ -154,19 +160,21 @@ export function SearchLocationBox({ onSelect, onClear }: Props) {
           {error ? <p className="px-3 py-2 text-xs font-semibold text-red-600">{error}</p> : null}
           {results.slice(0, 4).map((result) => (
             <button
-              key={`${result.name}-${result.latitude}-${result.longitude}`}
+              key={`${result.provider.id}-${result.externalReference?.id ?? `${result.displayName}-${result.coordinates.latitude}-${result.coordinates.longitude}`}`}
               type="button"
               onClick={() => {
-                setQuery(result.name);
+                setQuery(result.displayName);
                 onSelect(result);
-                setConfirmed(result.name);
+                setConfirmed(result.displayName);
                 setResults([]);
                 setError(null);
               }}
               className="block w-full rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-[#FFF1B5]/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B97D7B]/50"
             >
-              <span className="block font-bold text-ink">{result.name}</span>
-              <span className="mt-0.5 block text-xs leading-4 text-stone-500">{result.address}</span>
+              <span className="block font-bold text-ink">{result.displayName}</span>
+              <span className="mt-0.5 block text-xs leading-4 text-stone-500">
+                {result.displayAddress}
+              </span>
             </button>
           ))}
         </div>

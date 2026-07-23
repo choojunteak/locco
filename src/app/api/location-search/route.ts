@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchKnownLocations, searchOneMap } from "@/utils/location";
+import {
+  activeLocationSearchAdapter,
+  searchKnownLocations,
+  searchLocations
+} from "@/lib/location-search";
 
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get("query")?.trim();
@@ -7,29 +11,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing query parameter." }, { status: 400 });
   }
 
+  const providerName = activeLocationSearchAdapter.provider.displayName;
+
   try {
-    const known = searchKnownLocations(query);
-    const liveResults = await searchOneMap(query);
-    const merged = [...known, ...liveResults].slice(0, 8);
-    return NextResponse.json({ results: merged });
+    const results = await searchLocations(query);
+    return NextResponse.json({ results });
   } catch (error) {
     const fallback = searchKnownLocations(query);
     if (fallback.length > 0) {
       return NextResponse.json({
         results: fallback,
-        warning: "Using local fallback results because OneMap was unavailable."
+        warning: `Using local fallback results because ${providerName} was unavailable.`
       });
     }
 
     return NextResponse.json(
       {
-        error: "Unable to search OneMap right now.",
+        error: `Unable to search ${providerName} right now.`,
         details: error instanceof Error ? error.message : "Unknown error"
       },
       { status: 502 }
     );
   }
 }
-
-// If OneMap requires authenticated calls in the future, generate and cache the token here
-// using ONEMAP_EMAIL and ONEMAP_PASSWORD. Never send those values to the frontend.

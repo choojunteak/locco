@@ -1,7 +1,11 @@
 import type { MergedPlace, RecommendationResult } from "@/types";
 import { distanceMeters } from "@/utils/distance";
-import { knownLocations, searchKnownLocations, searchOneMap } from "@/utils/location";
 import { getPlacesForSelectedLists } from "@/lib/data/places";
+import {
+  knownLocations,
+  searchKnownLocations,
+  searchLocations
+} from "@/lib/location-search";
 
 const tagKeywords: Record<string, string[]> = {
   Dessert: ["dessert", "sweet", "ice cream", "waffle", "pancake", "matcha"],
@@ -31,10 +35,10 @@ export function extractTags(query: string) {
 export function extractLocationPhrase(query: string) {
   const normalized = query.toLowerCase();
   const knownMatch = knownLocations.find((location) => {
-    const shortName = location.name.toLowerCase().replace(" mrt", "");
-    return normalized.includes(location.name.toLowerCase()) || normalized.includes(shortName);
+    const shortName = location.displayName.toLowerCase().replace(" mrt", "");
+    return normalized.includes(location.displayName.toLowerCase()) || normalized.includes(shortName);
   });
-  if (knownMatch) return knownMatch.name;
+  if (knownMatch) return knownMatch.displayName;
 
   const nearMatch = query.match(/\bnear\s+([^,.]+)(?:[,.]|$)/i);
   if (nearMatch?.[1]) return nearMatch[1].trim();
@@ -127,26 +131,31 @@ export async function recommendPlaces(query: string, selectedListIds: string[]) 
 
   const interpretedLocation = extractLocationPhrase(query);
   const radiusMeters = 1000;
+  const fallbackReference = knownLocations[0];
+  if (!fallbackReference) {
+    throw new Error("Known location fallback is unavailable.");
+  }
+
   const known = searchKnownLocations(interpretedLocation)[0];
   let reference = known;
 
   if (!reference) {
     try {
-      reference = (await searchOneMap(interpretedLocation))[0];
+      reference = (await searchLocations(interpretedLocation))[0] ?? fallbackReference;
     } catch {
-      reference = knownLocations[0];
+      reference = fallbackReference;
     }
   }
 
   const strictResults = visiblePlaces
     .map((place) => {
-      const scoredPlace = scorePlace(place, interpretedTags, reference, radiusMeters);
+      const scoredPlace = scorePlace(place, interpretedTags, reference.coordinates, radiusMeters);
       if (scoredPlace) return scoredPlace;
       if (!placeNameMatches.has(place.id)) return null;
 
       return {
         ...place,
-        distanceMeters: Math.round(distanceMeters(reference, place)),
+        distanceMeters: Math.round(distanceMeters(reference.coordinates, place)),
         score: 90,
         matchedTags: ["Place match"]
       };
@@ -159,13 +168,13 @@ export async function recommendPlaces(query: string, selectedListIds: string[]) 
       ? strictResults
       : visiblePlaces
           .map((place) => {
-            const scoredPlace = scorePlace(place, interpretedTags, reference, 1800);
+            const scoredPlace = scorePlace(place, interpretedTags, reference.coordinates, 1800);
             if (scoredPlace) return scoredPlace;
             if (!placeNameMatches.has(place.id)) return null;
 
             return {
               ...place,
-              distanceMeters: Math.round(distanceMeters(reference, place)),
+              distanceMeters: Math.round(distanceMeters(reference.coordinates, place)),
               score: 90,
               matchedTags: ["Place match"]
             };
@@ -177,7 +186,7 @@ export async function recommendPlaces(query: string, selectedListIds: string[]) 
     .slice(0, 5);
 
   return {
-    interpretedLocation: reference.name,
+    interpretedLocation: reference.displayName,
     interpretedTags,
     radiusMeters,
     results
