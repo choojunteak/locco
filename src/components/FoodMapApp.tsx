@@ -6,8 +6,8 @@ import { DEMO_LIST_ID, DEMO_USER_DISPLAY_NAME } from "@/lib/demoIdentity";
 import type {
   FoodList,
   FoodPlace,
+  LocationSearchResult,
   MergedPlace,
-  OneMapResult,
   PlaceStatus,
   RecommendationResult
 } from "@/types";
@@ -139,7 +139,7 @@ export function FoodMapApp({
   );
   const [placeSheetSnapState, setPlaceSheetSnapState] =
     useState<PlaceSheetSnapState>("mid");
-  const [referencePoint, setReferencePoint] = useState<OneMapResult | null>(null);
+  const [referencePoint, setReferencePoint] = useState<LocationSearchResult | null>(null);
   const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isMapFiltersOpen, setIsMapFiltersOpen] = useState(false);
@@ -220,7 +220,7 @@ export function FoodMapApp({
 
   const selectedPlaceDistance =
     selectedPlace && referencePoint
-      ? distanceMeters(referencePoint, selectedPlace)
+      ? distanceMeters(referencePoint.coordinates, selectedPlace)
       : undefined;
 
   function handleSelectPlace(place: MergedPlace) {

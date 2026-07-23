@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, type RefObject } from "react";
-import type { OneMapResult } from "@/types";
+import type { LocationSearchResult } from "@/types";
 import { SearchLocationBox } from "@/components/SearchLocationBox";
 
 type Props = {
   isHidden: boolean;
   isFilterActive: boolean;
   filterButtonRef: RefObject<HTMLButtonElement | null>;
-  onSelectLocation: (location: OneMapResult) => void;
+  onSelectLocation: (location: LocationSearchResult) => void;
   onClearLocation: () => void;
   onOpenFilters: () => void;
 };

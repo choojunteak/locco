@@ -83,10 +83,14 @@ export type RecommendationResult = MergedPlace & {
   matchedTags: string[];
 };
 
-export type OneMapResult = {
-  name: string;
-  address: string;
-  postal?: string;
-  latitude: number;
-  longitude: number;
-};
+export type {
+  ExternalLocationSearchProviderId,
+  ExternalProviderReference,
+  LocationSearchAdapter,
+  LocationSearchProviderId,
+  LocationSearchProviderMetadata,
+  LocationSearchResult,
+  LocationSearchResultKind,
+  MapRendererMode,
+  ValidatedCoordinates
+} from "./locationSearch";

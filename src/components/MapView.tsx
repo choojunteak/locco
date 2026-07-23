@@ -4,14 +4,14 @@ import { useEffect, useMemo, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import type { FeatureCollection, Point } from "geojson";
 import type { PlaceSheetSnapState } from "@/components/PlaceBottomSheet";
-import type { MergedPlace, OneMapResult } from "@/types";
+import type { LocationSearchResult, MergedPlace } from "@/types";
 
 type Props = {
   places: MergedPlace[];
   highlightedIds: string[];
   selectedPlace: MergedPlace | null;
   placeSheetSnapState: PlaceSheetSnapState;
-  referencePoint: OneMapResult | null;
+  referencePoint: LocationSearchResult | null;
   onSelectPlace: (place: MergedPlace) => void;
 };
 
@@ -366,10 +366,10 @@ export function MapView({
     referenceMarkerRef.current = null;
     if (!referencePoint) return;
     referenceMarkerRef.current = new maplibregl.Marker({ color: "#f36b4f" })
-      .setLngLat([referencePoint.longitude, referencePoint.latitude])
+      .setLngLat([referencePoint.coordinates.longitude, referencePoint.coordinates.latitude])
       .addTo(mapRef.current);
     mapRef.current.easeTo({
-      center: [referencePoint.longitude, referencePoint.latitude],
+      center: [referencePoint.coordinates.longitude, referencePoint.coordinates.latitude],
       zoom: 13,
       duration: 500
     });
