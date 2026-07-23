@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MergedPlace, RecommendationResult } from "@/types";
 import { formatDistance } from "@/utils/distance";
 import { TagChip } from "@/components/TagChip";
@@ -29,7 +29,25 @@ export function ChatRecommendationPanel({
 }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestControllerRef = useRef<AbortController | null>(null);
+  const requestGenerationRef = useRef(0);
   const { query, summary, results, hasAsked } = session;
+  const hasSelectedLists = selectedListIds.length > 0;
+  const listScopeKey = selectedListIds.join(",");
+
+  useEffect(() => {
+    requestGenerationRef.current += 1;
+    requestControllerRef.current?.abort();
+    requestControllerRef.current = null;
+    setIsLoading(false);
+    setError(null);
+
+    return () => {
+      requestGenerationRef.current += 1;
+      requestControllerRef.current?.abort();
+      requestControllerRef.current = null;
+    };
+  }, [listScopeKey]);
 
   function getRecommendationReason(result: RecommendationResult) {
     const reasons: string[] = [];
@@ -53,7 +71,13 @@ export function ChatRecommendationPanel({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!query.trim()) return;
+    if (!query.trim() || !hasSelectedLists || isLoading) return;
+
+    requestControllerRef.current?.abort();
+    const controller = new AbortController();
+    const requestGeneration = requestGenerationRef.current + 1;
+    requestGenerationRef.current = requestGeneration;
+    requestControllerRef.current = controller;
 
     setIsLoading(true);
     setError(null);
@@ -68,7 +92,8 @@ export function ChatRecommendationPanel({
       const response = await fetch("/api/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, selectedListIds })
+        body: JSON.stringify({ query, selectedListIds }),
+        signal: controller.signal
       });
       const payload = (await response.json()) as {
         interpretedLocation?: string;
@@ -77,6 +102,7 @@ export function ChatRecommendationPanel({
         error?: string;
       };
       if (!response.ok) throw new Error(payload.error ?? "Recommendation failed.");
+      if (requestGeneration !== requestGenerationRef.current) return;
       const nextResults = (payload.results ?? []).slice(0, 5);
       onResults(nextResults);
       onSessionChange({
@@ -88,6 +114,7 @@ export function ChatRecommendationPanel({
         }.`
       });
     } catch (recommendError) {
+      if (controller.signal.aborted || requestGeneration !== requestGenerationRef.current) return;
       setError(recommendError instanceof Error ? recommendError.message : "Recommendation failed.");
       onSessionChange({
         query,
@@ -97,7 +124,10 @@ export function ChatRecommendationPanel({
       });
       onResults([]);
     } finally {
-      setIsLoading(false);
+      if (requestGeneration === requestGenerationRef.current) {
+        requestControllerRef.current = null;
+        setIsLoading(false);
+      }
     }
   }
 
@@ -120,12 +150,17 @@ export function ChatRecommendationPanel({
         />
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || !hasSelectedLists}
           className="rounded-full bg-tomato px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
         >
           {isLoading ? "..." : "Ask"}
         </button>
       </form>
+      {!hasSelectedLists ? (
+        <p className="mt-2 text-xs font-bold text-[#B97D7B]">
+          Select at least one list before asking Locco.
+        </p>
+      ) : null}
       {summary ? <p className="mt-2 text-xs font-semibold text-stone-500">{summary}</p> : null}
       {error ? <p className="mt-2 text-xs font-semibold text-red-600">{error}</p> : null}
 

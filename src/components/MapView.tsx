@@ -361,8 +361,10 @@ export function MapView({
   }, [selectedPlace, placeSheetSnapState]);
 
   useEffect(() => {
-    if (!mapRef.current || !referencePoint) return;
+    if (!mapRef.current) return;
     referenceMarkerRef.current?.remove();
+    referenceMarkerRef.current = null;
+    if (!referencePoint) return;
     referenceMarkerRef.current = new maplibregl.Marker({ color: "#f36b4f" })
       .setLngLat([referencePoint.longitude, referencePoint.latitude])
       .addTo(mapRef.current);

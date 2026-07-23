@@ -19,15 +19,25 @@ Locco's current product direction is warm, social, and playful rather than dashb
 - Do not scrape Google Maps, TikTok, or Instagram.
 - Do not use paid Google Maps APIs.
 - Keep OneMap calls server-side.
+- Do not commit or push without explicit user approval.
 
 ## Working Rules
 
 - Keep the app runnable without Supabase credentials.
 - Use mock data first, then add Supabase persistence behind clear boundaries.
+- Keep branches PR-sized and narrowly implemented, while remaining aware of foreseeable follow-up architecture.
+- Scope limits what may be implemented in a branch, not what may be investigated or reported. Surface architectural conflicts instead of silently patching around them.
 - Prefer small typed utilities over giant components.
 - Use Tailwind and the existing light, friendly design direction.
-- Keep mobile map interactions comfortable: bottom sheets, chips, compact panels, and touch-friendly targets.
+- Keep mobile map interactions comfortable: bottom sheets, compact panels, floating controls, and touch-friendly targets.
 - Use a proper motion/gesture architecture for core mobile drag interactions early; avoid fragile patched height/pointer dragging for sheet-like surfaces.
+- Keep applied filter state in one source of truth. Presentation components may emit candidate changes but should not own a second durable applied scope.
+- Preserve explicit empty arrays as explicit empty scope; do not silently broaden them into defaults.
+- Preserve unrelated query parameters when updating route-owned URL state, and prefer replace-style navigation for live controls that should not spam history.
+- Canonicalize list IDs through one helper that removes invalid/duplicate values and restores loaded-list order.
+- Do not treat display names as stable owner identity.
+- Do not add a provider, schema, auth, RLS, or persistence change inside an unrelated UI branch.
+- Distinguish browser-automation limitations from genuine product regressions in verification reports.
 - Do not add placeholder image files for list covers. Wait for live database-backed place images or source thumbnails.
 - Keep saved-list and saved-place UI interactions mobile-first, swipe-friendly, and touch-friendly.
 - Avoid full-width fixed bottom bars unless intentionally needed. Prefer floating rounded navigation pills.
@@ -60,7 +70,13 @@ Current UI direction:
 - The map sheet opens selected places at mid, preserves minimized state when switching selected places, and closes when pulled below minimized.
 - Minimized map sheet content should stay compact: key place info plus compact `Directions`, with content-aware clamped height.
 - Directions overlays must render full-screen and must not be clipped by the map sheet.
-- Top search/list filters and bottom Ask Locco/Add/nav/map controls still need design work; do not redesign them unless the task asks for it.
+- The current map has text-first search, a presentational profile placeholder, a circular Map Filters trigger, live list filtering, and coordinated Ask Locco/Add/navigation controls.
+- `FoodMapApp` owns the applied map list scope. Map Filters and Ask Locco must not introduce competing filter state.
+- Top controls stay available with no selection, minimized, and mid; they are hidden and inert while the map place sheet is expanded.
+- MapLibre attribution must remain visible and clickable, with map-page-only overrides.
+- The current profile control is intentionally presentational until a dedicated profile/immersive-map task makes it functional.
+- Provider research may compare OneMap, Google Places/Maps, and other suitable options, but research is not provider selection and must not leak provider implementation into an unrelated branch.
+- Treat route-specific immersive map shell, safe areas, AppShell removal/replacement, document scrolling, and final profile placement as a separate architecture task.
 - Expanded place detail spacing and internal scroll handoff can be polished later.
 
 ## Useful Commands

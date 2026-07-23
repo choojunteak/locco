@@ -10,7 +10,10 @@ export default async function MapPage({
   searchParams: Promise<{ lists?: string; place?: string }>;
 }) {
   const params = await searchParams;
-  const initialSelectedListIds = params.lists?.split(",").filter(Boolean);
+  const hasListSelection = Object.prototype.hasOwnProperty.call(params, "lists");
+  const initialSelectedListIds = hasListSelection
+    ? (params.lists ?? "").split(",").filter(Boolean)
+    : undefined;
   const [foodLists, foodPlaces] = await Promise.all([getFoodLists(), getAllFoodPlaces()]);
 
   return (
