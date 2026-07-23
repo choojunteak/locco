@@ -37,13 +37,46 @@ Supabase-backed reads and writes are behind clear boundaries. When Supabase publ
 - Map place sheet snap states: the selected-place map sheet uses Motion-based transform dragging with `minimized`, `mid`, and `expanded` snap states. Opening a place defaults to `mid`; switching selected places while minimized preserves minimized state; pulling down past minimized closes the sheet. The minimized card shows key place info and compact Directions, mid/expanded states show richer details and bottom actions, and minimized height is content-aware and clamped.
 - Full-screen Directions overlay: `DirectionsAction` renders through a portal so the overlay is not clipped by the draggable map sheet.
 - Snap-state map padding: map camera padding responds to the selected sheet state so selected pins remain more visible.
+- Map top controls redesign: the map now uses text-first location search with native form submission, a conditional clear action, anchored results, a stable centered loading spinner, reference-marker clearing, a presentational profile placeholder, and a circular Map Filters trigger. The controls are visible with no selected place and at minimized/mid sheet snaps, then hidden and inert at expanded.
+- Live Map Filters: the former persistent horizontal selected-list chips and `ListDrawer` were replaced by a controlled, viewport-safe filter dialog with Select all/Deselect all and compact collapsible owner groups. `Your lists` starts expanded, friend groups start collapsed, and selection changes update markers and URL state immediately without Apply, Cancel, or Reset.
+- Explicit list-scope semantics: a missing `lists` parameter means all currently accessible lists, while `lists=` means explicit zero. Invalid and duplicate IDs are removed through one loaded-list-order canonicalization helper, unrelated query parameters survive replace-style URL updates, and stale `place=` state is removed when its place leaves scope.
+- Zero-list recovery: explicit zero scope removes saved-place markers and stale place selection, keeps the filter badge active, and shows a visible `No lists selected` state whose `Choose lists` action reopens Map Filters.
+- Shared Ask Locco scope: recommendations consume the same applied list IDs as the map. Zero scope disables submission; explicit empty arrays stay empty at the API boundary; absent scope retains the legacy fallback. Scope changes preserve the typed query while clearing old summary, results, highlights, and stale in-flight work.
+- Coordinated bottom controls: Ask Locco/Add actions and map navigation now share a presentation component. CSS tokens centralize their vertical spacing with MapLibre attribution, attribution overrides are scoped to the map page, and short-landscape zero-state recovery avoids the control stack.
 - Visual system refresh: Locco uses Butter, Berry Good, Usu Koubai Blossom, Meadow Mauve, Soldier Green/Forest, and Ink across the current light playful UI.
 - Saved-place RLS/grants: `saved_places` is intended to support authenticated select/insert/delete/update under RLS. Delete and update are restricted to the current user's own saves from lists they own, and update uses both `USING` and `WITH CHECK` to prevent moving a save into another user's list or ownership. Manual remote SQL has previously been applied for the saved-place delete/update grants and policies; `supabase/schema.sql` should reflect the intended reference state.
+
+## Map Controls Redesign Decisions
+
+The map-controls branch changes presentation and list-scope coordination without replacing the existing place-sheet, save, or data architecture.
+
+- Persistent horizontal chips did not scale comfortably across list counts or narrow map widths, so `SelectedListChips` and `ListDrawer` were deleted. `MapTopControls`, `MapFiltersSheet`, and `MapBottomControls` were added with narrower presentation responsibilities.
+- `FoodMapApp` remains the sole owner of applied list scope. `MapFiltersSheet` receives the applied IDs and emits candidate selections; it does not keep durable applied state. `ChatRecommendationPanel` consumes that same scope rather than owning a second filter source of truth.
+- Live filtering was chosen because each checkbox action is immediately reversible and should update both markers and URL state. A staged Apply/Cancel model would add duplicate state and ambiguous cancellation semantics.
+- Explicit zero selection exposed two fallback bugs: route parsing previously could not distinguish a missing `lists` parameter from `lists=`, and the recommendation API broadened an empty array to `list_my`. Both boundaries now preserve explicit empty scope while retaining the legacy fallback only when scope is absent.
+- List scope is canonicalized by filtering the loaded list collection in its existing order. This simultaneously removes invalid IDs, duplicates, and caller-dependent ordering.
+- Bottom-control spacing is centralized in map-specific CSS tokens so Ask Locco/Add, attribution, and navigation share one vertical system instead of independent offsets. MapLibre attribution stays visible, clickable, and scoped to the Locco map page.
+- The profile icon remains a presentational placeholder because authentication actions and profile readiness belong in a real profile surface. That decision is coupled to the later immersive map-shell work, not this PR-sized control branch.
+- OneMap search UI was refined, but search-provider expansion was deferred. Provider choice affects identity, billing, storage, caching, attribution, map rendering, and the path from an external result to a canonical Locco place.
+- The immersive header remains separate because it requires route-specific shell, `100dvh`, safe-area, and document-scroll decisions. The current `AppShell` header and map-height calculation have a known roughly 24px mismatch.
+- Owner groups currently use `ownerName` only for presentation. Stable owner IDs are still required so duplicate friend display names do not collapse into one group.
+
+Preserved architecture:
+
+- Motion transform dragging and minimized/mid/expanded place-sheet snap states;
+- content-aware dynamic minimized height and snap-state map padding;
+- the full-screen Directions portal;
+- Save Status and save/edit/remove behavior;
+- canonical place identity and personal saved-place ownership;
+- signed-in saved-state behavior and mock/no-Supabase fallback;
+- Add Place remaining local-only.
 
 ## Current Boundaries
 
 - Add Place remains local-only for now; `local-` entries are not persisted by `/api/places/save`.
+- `AddPlaceModal` does not yet provide complete dialog semantics, focus trapping/restoration, or keyboard dismissal. Treat this as an accessibility gap rather than completed behavior.
 - Saves currently go to the user's default private saved list instead of a full multi-list picker.
+- Map Filters groups friend lists by display name for presentation; stable owner identity and duplicate-name handling remain unimplemented.
 - Flippable list-detail cards intentionally do not show save/status controls.
 - Non-map `PlaceCard` surfaces hide save/status controls by default unless explicitly opted in.
 - The map place sheet preserves save/status controls, SaveStatusSheet, remove saved place, mock fallback, signed-in saved state, and `/app/map?place=...` focus behavior.
@@ -52,18 +85,21 @@ Supabase-backed reads and writes are behind clear boundaries. When Supabase publ
 - Do not use paid Google Maps APIs or scrape Google Maps, TikTok, or Instagram.
 - Do not add placeholder image files for list covers.
 - Core mobile gestures should be built with a proper motion/gesture architecture early instead of patched height/pointer dragging.
+- OneMap currently acts primarily as a location/address source, requests only its first result page, and is capped again by the server and client. Autocomplete, comprehensive chain/outlet coverage, ratings, photos, opening hours, categories, and robust external place identity are not implemented.
+- The current map still uses the beige `AppShell` header and has a known roughly 24px AppShell/map height mismatch that can cause document-level scrolling.
 
 ## Future Work
 
 - Keep docs current as project context changes.
-- Redesign the top search/list filter layout.
-- Redesign bottom Ask Locco, Add, navigation, and map controls.
-- Revisit minimized map sheet height alongside the bottom map controls if those controls change.
+- Investigate `map-search-discovery-flow`, comparing OneMap, Google Places/Maps, and other suitable providers without assuming a winner. Evaluate autocomplete, Singapore business and chain coverage, ratings, opening hours, photos, categories, provider IDs, canonical external identity, pricing/billing controls, usage/caching/storage/display/attribution terms, MapLibre's renderer role, search-only versus map-provider scope, a draggable/minimizable results sheet, and conversion of an external result into a canonical saved Locco place.
+- Keep `map-immersive-header-layout` as a separate branch covering a route-specific full-height map shell, removal or replacement of the beige map header, correct `100dvh`, iOS/Android safe areas, document-scroll removal, the AppShell/map mismatch, final top/bottom control placement, a functional profile surface for Profile ready and Sign out, and whether a small Locco logo mark remains.
 - Polish expanded place detail spacing and section hierarchy.
 - Revisit fully native nested scroll-to-drag handoff for expanded sheet content if needed.
 - Redesign place detail pages around canonical places and personal saved-place state.
-- Add list status filters and edit-save flows in list contexts.
+- Add status filtering and define tag taxonomy/filtering.
 - Expand from default-list saves to a multi-list save model.
 - Deepen friend/list browsing.
 - Persist Add Place.
-- Polish photos, comments, recommendations, tags, and source links.
+- Add photo support and define personal notes versus social comments.
+- Tune deterministic recommendations without presenting them as full AI.
+- Continue performance and mobile polish, including real-device keyboard and touch-drag testing.

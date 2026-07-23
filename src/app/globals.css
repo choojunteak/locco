@@ -7,6 +7,10 @@
 :root {
   color-scheme: light;
   background: #f5f3f0;
+  --map-nav-bottom-inset: 12px;
+  --map-nav-height: 48px;
+  --map-bottom-control-gap: 8px;
+  --map-attribution-height: 24px;
 }
 
 * {
@@ -24,9 +28,49 @@ a {
   text-decoration: none;
 }
 
-.maplibregl-ctrl-bottom-left,
-.maplibregl-ctrl-bottom-right {
+.locco-map-page .maplibregl-ctrl-bottom-left,
+.locco-map-page .maplibregl-ctrl-bottom-right {
   margin-bottom: 92px;
+}
+
+/* Keep MapLibre attribution in the token-derived lane between the action row and nav. */
+.locco-map-page .maplibregl-ctrl-bottom-right {
+  position: fixed;
+  bottom: calc(
+    var(--map-nav-bottom-inset) + var(--map-nav-height) + var(--map-bottom-control-gap)
+  );
+  margin-bottom: 0;
+}
+
+.locco-map-page .maplibregl-ctrl-bottom-right > .maplibregl-ctrl {
+  margin-bottom: 0;
+}
+
+.map-bottom-controls {
+  bottom: var(--map-nav-bottom-inset);
+}
+
+.map-bottom-actions {
+  margin-bottom: calc(
+    var(--map-attribution-height) + var(--map-bottom-control-gap) +
+      var(--map-bottom-control-gap)
+  );
+}
+
+@media (orientation: landscape) and (max-height: 600px) and (max-width: 1024px) {
+  .map-empty-state {
+    justify-content: flex-start;
+  }
+
+  .map-empty-state-card {
+    max-width: 18rem;
+  }
+}
+
+@media (max-width: 767px), (max-width: 1024px) and (pointer: coarse) {
+  .locco-map-page .maplibregl-ctrl-top-right > .maplibregl-ctrl-group {
+    display: none;
+  }
 }
 
 .bottom-sheet-scroll {

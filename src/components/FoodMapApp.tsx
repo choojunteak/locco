@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DEMO_LIST_ID, DEMO_USER_DISPLAY_NAME } from "@/lib/demoIdentity";
 import type {
   FoodList,
@@ -19,7 +18,9 @@ import {
   ChatRecommendationPanel,
   type RecommendationPanelState
 } from "@/components/ChatRecommendationPanel";
-import { ListDrawer } from "@/components/ListDrawer";
+import { MapBottomControls } from "@/components/MapBottomControls";
+import { MapFiltersSheet } from "@/components/MapFiltersSheet";
+import { MapTopControls } from "@/components/MapTopControls";
 import { MapView } from "@/components/MapView";
 import {
   PlaceBottomSheet,
@@ -27,8 +28,6 @@ import {
 } from "@/components/PlaceBottomSheet";
 import { PlaceCard } from "@/components/PlaceCard";
 import { SaveStatusSheet } from "@/components/SaveStatusSheet";
-import { SearchLocationBox } from "@/components/SearchLocationBox";
-import { SelectedListChips } from "@/components/SelectedListChips";
 
 type Props = {
   foodLists: FoodList[];
@@ -114,6 +113,11 @@ function getInitialSavedPlaceIds(lists: FoodList[], places: FoodPlace[]) {
   );
 }
 
+function canonicalizeSelectedListIds(lists: FoodList[], candidateListIds: string[]) {
+  const requestedIds = new Set(candidateListIds);
+  return lists.map((list) => list.id).filter((listId) => requestedIds.has(listId));
+}
+
 export function FoodMapApp({
   foodLists,
   foodPlaces,
@@ -121,21 +125,24 @@ export function FoodMapApp({
   initialFocusedPlaceId
 }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const defaultListIds = useMemo(() => foodLists.map((list) => list.id), [foodLists]);
   const [lists, setLists] = useState<FoodList[]>(() => foodLists);
   const [places, setPlaces] = useState<FoodPlace[]>(() => foodPlaces);
   const [selectedListIds, setSelectedListIds] = useState(() => {
-    const validIds = new Set(defaultListIds);
-    const fromUrl = [...new Set(initialSelectedListIds?.filter((id) => validIds.has(id)) ?? [])];
-    return fromUrl.length ? fromUrl : defaultListIds;
+    if (initialSelectedListIds === undefined) return defaultListIds;
+    return canonicalizeSelectedListIds(foodLists, initialSelectedListIds);
   });
   const [selectedPlace, setSelectedPlace] = useState<MergedPlace | null>(null);
+  const [resolvedInitialPlaceId, setResolvedInitialPlaceId] = useState<string | null>(
+    initialFocusedPlaceId ? null : ""
+  );
   const [placeSheetSnapState, setPlaceSheetSnapState] =
     useState<PlaceSheetSnapState>("mid");
   const [referencePoint, setReferencePoint] = useState<OneMapResult | null>(null);
   const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isListDrawerOpen, setIsListDrawerOpen] = useState(false);
+  const [isMapFiltersOpen, setIsMapFiltersOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [savingPlaceId, setSavingPlaceId] = useState<string | null>(null);
   const [unsavingPlaceId, setUnsavingPlaceId] = useState<string | null>(null);
@@ -150,45 +157,71 @@ export function FoodMapApp({
     results: [],
     hasAsked: false
   });
+  const filterButtonRef = useRef<HTMLButtonElement | null>(null);
+  const recommendationScopeRef = useRef(selectedListIds.join(","));
 
   const visiblePlaces = useMemo(
     () => getVisiblePlaces(places, selectedListIds, lists),
     [lists, places, selectedListIds]
   );
+  const selectedAccessibleListCount = useMemo(
+    () => lists.filter((list) => selectedListIds.includes(list.id)).length,
+    [lists, selectedListIds]
+  );
+  const isListFilterActive = Boolean(lists.length) && selectedAccessibleListCount < lists.length;
 
   useEffect(() => {
-    const params = new URLSearchParams();
+    const nextScope = selectedListIds.join(",");
+    if (recommendationScopeRef.current === nextScope) return;
+    recommendationScopeRef.current = nextScope;
+    setHighlightedIds([]);
+    setRecommendationSession((current) => ({
+      query: current.query,
+      summary: null,
+      results: [],
+      hasAsked: false
+    }));
+  }, [selectedListIds]);
+
+  useEffect(() => {
+    if (initialFocusedPlaceId && resolvedInitialPlaceId !== initialFocusedPlaceId) return;
+
+    const currentQuery = searchParams.toString();
+    const params = new URLSearchParams(currentQuery);
     params.set("lists", selectedListIds.join(","));
 
     if (selectedPlace) {
       params.set("place", selectedPlace.id);
+    } else {
+      params.delete("place");
     }
 
-    router.replace(`/app/map?${params.toString()}`, { scroll: false });
-  }, [router, selectedListIds, selectedPlace]);
+    const nextQuery = params.toString();
+    if (nextQuery === currentQuery) return;
+    router.replace(`/app/map?${nextQuery}`, { scroll: false });
+  }, [
+    initialFocusedPlaceId,
+    resolvedInitialPlaceId,
+    router,
+    searchParams,
+    selectedListIds,
+    selectedPlace
+  ]);
 
   useEffect(() => {
-    if (!initialFocusedPlaceId) return;
-    const focusedPlace = visiblePlaces.find((place) => place.id === initialFocusedPlaceId);
-    if (focusedPlace) {
-      setSelectedPlace(focusedPlace);
+    if (initialFocusedPlaceId) {
+      const focusedPlace = visiblePlaces.find((place) => place.id === initialFocusedPlaceId);
+      if (focusedPlace) {
+        setSelectedPlace(focusedPlace);
+      }
     }
+    setResolvedInitialPlaceId(initialFocusedPlaceId ?? "");
   }, [initialFocusedPlaceId, visiblePlaces]);
 
   const selectedPlaceDistance =
     selectedPlace && referencePoint
       ? distanceMeters(referencePoint, selectedPlace)
       : undefined;
-
-  function toggleList(listId: string) {
-    setSelectedListIds((current) => {
-      if (current.includes(listId)) {
-        const next = current.filter((id) => id !== listId);
-        return next.length ? next : current;
-      }
-      return [...current, listId];
-    });
-  }
 
   function handleSelectPlace(place: MergedPlace) {
     setPlaceSheetSnapState((current) => (selectedPlace ? current : "mid"));
@@ -198,6 +231,23 @@ export function FoodMapApp({
   function closeSelectedPlace() {
     setSelectedPlace(null);
     setPlaceSheetSnapState("mid");
+  }
+
+  function updateMapListScope(listIds: string[]) {
+    const nextListIds = canonicalizeSelectedListIds(lists, listIds);
+    const scopeChanged = nextListIds.join(",") !== selectedListIds.join(",");
+    if (!scopeChanged) return;
+
+    if (selectedPlace) {
+      const nextSelectedPlace = getVisiblePlaces([selectedPlace], nextListIds, lists)[0];
+      if (nextSelectedPlace) {
+        setSelectedPlace(nextSelectedPlace);
+      } else {
+        closeSelectedPlace();
+      }
+    }
+
+    setSelectedListIds(nextListIds);
   }
 
   function handleRecommendationResults(results: RecommendationResult[]) {
@@ -222,8 +272,11 @@ export function FoodMapApp({
 
   function handleAddPlace(place: FoodPlace) {
     setPlaces((current) => [place, ...current]);
-    if (!selectedListIds.includes(place.listIds[0])) {
-      setSelectedListIds((current) => [...current, place.listIds[0]]);
+    const addedListId = place.listIds[0];
+    if (addedListId) {
+      setSelectedListIds((current) =>
+        canonicalizeSelectedListIds(lists, current.concat(addedListId))
+      );
     }
   }
 
@@ -254,9 +307,12 @@ export function FoodMapApp({
     const personalNote = note.trim();
     const nextPersonalNote = personalNote || undefined;
     const nextRating = status === "visited" && rating ? rating : undefined;
+    const orderedLists = lists.some((item) => item.id === list.id) ? lists : [list, ...lists];
 
     setSavedPlaceIds((current) => new Set(current).add(placeId));
-    setSelectedListIds((current) => (current.includes(list.id) ? current : [...current, list.id]));
+    setSelectedListIds((current) =>
+      canonicalizeSelectedListIds(orderedLists, current.concat(list.id))
+    );
     setPlaces((current) =>
       current.map((place) =>
         place.id === placeId
@@ -276,25 +332,30 @@ export function FoodMapApp({
     );
     setSelectedPlace((current) =>
       current && current.id === placeId
-        ? {
-            ...current,
-            listIds: current.listIds.includes(list.id)
-              ? current.listIds
-              : [...current.listIds, list.id],
-            savedBy: current.savedBy.includes(savedByDisplayName)
-              ? current.savedBy
-              : [...current.savedBy, savedByDisplayName],
-            selectedListIds: current.selectedListIds.includes(list.id)
-              ? current.selectedListIds
-              : [...current.selectedListIds, list.id],
-            savedBySelected: current.savedBySelected.includes(savedByDisplayName)
-              ? current.savedBySelected
-              : [...current.savedBySelected, savedByDisplayName],
-            notes: personalNote || current.notes,
-            personalNote: nextPersonalNote,
-            rating: nextRating,
-            status
-          }
+        ? (() => {
+            const nextSelectedListIds = canonicalizeSelectedListIds(
+              orderedLists,
+              current.selectedListIds.concat(list.id)
+            );
+
+            return {
+              ...current,
+              listIds: current.listIds.includes(list.id)
+                ? current.listIds
+                : [...current.listIds, list.id],
+              savedBy: current.savedBy.includes(savedByDisplayName)
+                ? current.savedBy
+                : [...current.savedBy, savedByDisplayName],
+              selectedListIds: nextSelectedListIds,
+              savedBySelected: current.savedBySelected.includes(savedByDisplayName)
+                ? current.savedBySelected
+                : [...current.savedBySelected, savedByDisplayName],
+              notes: personalNote || current.notes,
+              personalNote: nextPersonalNote,
+              rating: nextRating,
+              status
+            };
+          })()
         : current
     );
   }
@@ -500,7 +561,7 @@ export function FoodMapApp({
   }
 
   return (
-    <main className="relative h-[calc(100dvh-41px)] overflow-hidden bg-cream">
+    <main className="locco-map-page relative h-[calc(100dvh-41px)] overflow-hidden bg-cream">
       <div className="absolute inset-0">
         <MapView
           places={visiblePlaces}
@@ -513,38 +574,44 @@ export function FoodMapApp({
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 p-3">
-        <div className="pointer-events-auto mx-auto max-w-2xl">
-          <div className="flex items-start gap-2">
-            <div className="min-w-0 flex-1">
-              <SearchLocationBox onSelect={setReferencePoint} />
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsListDrawerOpen(true)}
-              className="shrink-0 rounded-full bg-white/95 px-4 py-3 text-sm font-black text-ink shadow-soft ring-1 ring-stone-200 backdrop-blur"
-            >
-              {selectedListIds.length} lists
-            </button>
-          </div>
-          <div className="mt-2">
-            <SelectedListChips lists={lists} selectedListIds={selectedListIds} onToggle={toggleList} />
-          </div>
-        </div>
+        <MapTopControls
+          isHidden={Boolean(selectedPlace && placeSheetSnapState === "expanded")}
+          isFilterActive={isListFilterActive}
+          filterButtonRef={filterButtonRef}
+          onSelectLocation={setReferencePoint}
+          onClearLocation={() => setReferencePoint(null)}
+          onOpenFilters={() => setIsMapFiltersOpen(true)}
+        />
       </div>
 
+      {!selectedPlace && (!lists.length || !selectedListIds.length) ? (
+        <div className="map-empty-state pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
+          <section className="map-empty-state-card pointer-events-auto w-full max-w-xs rounded-3xl bg-white/95 p-4 text-center shadow-soft ring-1 ring-stone-200 backdrop-blur">
+            <h1 className="text-base font-black text-ink">
+              {lists.length ? "No lists selected" : "No lists available"}
+            </h1>
+            <p className="mt-1 text-sm leading-5 text-stone-600">
+              {lists.length
+                ? "Choose one or more lists in Map filters to show saved places."
+                : "There are no accessible lists to show on the map yet."}
+            </p>
+            {lists.length ? (
+              <button
+                type="button"
+                onClick={() => setIsMapFiltersOpen(true)}
+                className="mt-3 inline-flex h-11 items-center justify-center rounded-full bg-ink px-4 text-sm font-black text-white shadow-sm transition-colors hover:bg-[#575527] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B97D7B] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
+                Choose lists
+              </button>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
+
       <aside className="pointer-events-auto absolute right-4 top-28 z-20 hidden max-h-[calc(100dvh-170px)] w-80 overflow-y-auto rounded-lg bg-white/95 p-3 shadow-soft ring-1 ring-stone-200 backdrop-blur xl:block">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-tomato">Visible</p>
-            <h1 className="text-lg font-black text-ink">{visiblePlaces.length} saves</h1>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsAddOpen(true)}
-            className="rounded-full bg-ink px-3 py-2 text-xs font-bold text-white"
-          >
-            Add
-          </button>
+        <div className="mb-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-tomato">Visible</p>
+          <h1 className="text-lg font-black text-ink">{visiblePlaces.length} saves</h1>
         </div>
         <div className="grid gap-2">
           {visiblePlaces.slice(0, 6).map((place) => (
@@ -562,42 +629,12 @@ export function FoodMapApp({
         </div>
       </aside>
 
-      <div className="fixed bottom-20 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setIsChatOpen(true)}
-          className="rounded-full bg-tomato px-5 py-3 text-sm font-black text-white shadow-soft"
-        >
-          Ask Locco
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsAddOpen(true)}
-          className="rounded-full bg-ink px-5 py-3 text-sm font-black text-white shadow-soft"
-        >
-          Add
-        </button>
-      </div>
-
-      <nav className="fixed bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-white/95 p-1.5 shadow-soft ring-1 ring-stone-200 backdrop-blur">
-        <div className="grid grid-cols-3 gap-1">
-          {[
-            { href: "/app", label: "Home" },
-            { href: "/app/map", label: "Map", active: true },
-            { href: "/app/lists", label: "Lists" }
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`rounded-full px-4 py-2.5 text-center text-xs font-black transition ${
-                item.active ? "bg-ink text-white" : "text-stone-600 hover:bg-stone-100"
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-      </nav>
+      {!selectedPlace ? (
+        <MapBottomControls
+          onAskLocco={() => setIsChatOpen(true)}
+          onAddPlace={() => setIsAddOpen(true)}
+        />
+      ) : null}
 
       {isChatOpen ? (
         <div className="fixed inset-0 z-[60] bg-black/20" onClick={closeAskLocco}>
@@ -633,13 +670,13 @@ export function FoodMapApp({
         </div>
       ) : null}
 
-      <ListDrawer
+      <MapFiltersSheet
         lists={lists}
-        places={places}
-        selectedListIds={selectedListIds}
-        isOpen={isListDrawerOpen}
-        onClose={() => setIsListDrawerOpen(false)}
-        onToggle={toggleList}
+        appliedListIds={selectedListIds}
+        isOpen={isMapFiltersOpen}
+        triggerRef={filterButtonRef}
+        onClose={() => setIsMapFiltersOpen(false)}
+        onSelectionChange={updateMapListScope}
       />
 
       <PlaceBottomSheet
