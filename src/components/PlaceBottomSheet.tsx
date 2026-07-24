@@ -15,18 +15,26 @@ import {
   useTransform,
   type PanInfo
 } from "motion/react";
-import type { FoodList, MergedPlace, PlaceStatus } from "@/types";
+import type {
+  FoodList,
+  MapSheetSnapState,
+  MergedPlace,
+  PlaceDetailViewModel,
+  PlaceStatus
+} from "@/types";
 import { formatDistance } from "@/utils/distance";
 import { placeSourceLabel } from "@/utils/places";
 import { CompactTagList } from "@/components/CompactTagList";
 import { DirectionsAction } from "@/components/DirectionsAction";
 import { FriendAvatarStack } from "@/components/FriendAvatarStack";
 import { PlaceSaveStatusControls } from "@/components/PlaceSaveStatusControls";
+import { ProviderPlaceDetails } from "@/components/ProviderPlaceDetails";
 
-export type PlaceSheetSnapState = "minimized" | "mid" | "expanded";
+export type PlaceSheetSnapState = MapSheetSnapState;
 
 type Props = {
   place: MergedPlace | null;
+  detailViewModel?: PlaceDetailViewModel | null;
   lists?: FoodList[];
   distanceMeters?: number;
   snapState: PlaceSheetSnapState;
@@ -141,6 +149,7 @@ function clamp(value: number, min: number, max: number) {
 
 export function PlaceBottomSheet({
   place,
+  detailViewModel,
   lists,
   distanceMeters,
   snapState,
@@ -387,6 +396,10 @@ export function PlaceBottomSheet({
                 className="mt-3"
               />
             </div>
+
+            {detailViewModel ? (
+              <ProviderPlaceDetails details={detailViewModel.providerDetails} />
+            ) : null}
 
             {place.savedBySelected.length ? (
               <section className="mt-4 border-t border-stone-100 pt-4">

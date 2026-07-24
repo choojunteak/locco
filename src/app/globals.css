@@ -77,6 +77,119 @@ a {
   scrollbar-width: thin;
 }
 
+.locco-map-marker {
+  --marker-fill: #fff8ef;
+  --marker-ink: #231f20;
+  --marker-ring: #ffffff;
+  position: relative;
+  display: inline-flex;
+  width: 34px;
+  height: 42px;
+  align-items: flex-start;
+  justify-content: center;
+  filter: drop-shadow(0 5px 6px rgb(35 31 32 / 0.2));
+  transform-origin: 50% 100%;
+  transition:
+    filter 160ms ease,
+    transform 160ms ease;
+}
+
+.locco-map-marker::after {
+  position: absolute;
+  top: 22px;
+  width: 15px;
+  height: 15px;
+  border: 3px solid var(--marker-ring);
+  border-left: 0;
+  border-top: 0;
+  background: var(--marker-fill);
+  content: "";
+  transform: rotate(45deg);
+}
+
+.locco-map-marker__face {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--marker-ring);
+  border-radius: 9999px;
+  background: var(--marker-fill);
+  color: var(--marker-ink);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.locco-map-marker--want-to-try {
+  --marker-fill: #fff1b5;
+  --marker-ink: #575527;
+}
+
+.locco-map-marker--visited {
+  --marker-fill: #ecc4c3;
+  --marker-ink: #231f20;
+}
+
+.locco-map-marker--highlighted {
+  --marker-fill: #b97d7b;
+  --marker-ink: #ffffff;
+  --marker-ring: #fff1b5;
+  filter: drop-shadow(0 0 0.5rem rgb(185 125 123 / 0.55));
+  transform: scale(1.12);
+}
+
+.locco-map-marker--selected {
+  --marker-fill: #231f20;
+  --marker-ink: #fff1b5;
+  --marker-ring: #fff1b5;
+  filter: drop-shadow(0 0 0.55rem rgb(35 31 32 / 0.42));
+  transform: scale(1.18);
+}
+
+.locco-map-marker--transient {
+  --marker-fill: #ffffff;
+  --marker-ink: #928e5e;
+  --marker-ring: #928e5e;
+  opacity: 0.86;
+}
+
+.locco-map-marker--cluster {
+  --marker-fill: #575527;
+  --marker-ink: #ffffff;
+  --marker-ring: #fff1b5;
+  width: 42px;
+  height: 42px;
+}
+
+.locco-map-marker--cluster::after,
+.locco-map-marker--reference::after {
+  display: none;
+}
+
+.locco-map-marker--cluster .locco-map-marker__face {
+  width: 40px;
+  height: 40px;
+}
+
+.locco-map-marker--reference {
+  --marker-fill: #fff1b5;
+  --marker-ink: #b97d7b;
+  --marker-ring: #b97d7b;
+  width: 36px;
+  height: 36px;
+}
+
+.locco-map-marker--reference .locco-map-marker__face {
+  width: 34px;
+  height: 34px;
+  border-style: dashed;
+  font-size: 16px;
+}
+
 @theme {
   --color-cream: #f5f3f0;
   --color-berry: #ECC4C3;
