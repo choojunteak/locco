@@ -7,8 +7,13 @@ import type {
   FoodList,
   FoodPlace,
   LocationSearchResult,
+  MapRendererFatalError,
+  MapViewport,
   MergedPlace,
   PlaceStatus,
+  ProviderStackHealth,
+  ProviderStackPreference,
+  PublicProviderConfiguration,
   RecommendationResult
 } from "@/types";
 import { distanceMeters } from "@/utils/distance";
@@ -22,18 +27,29 @@ import { MapBottomControls } from "@/components/MapBottomControls";
 import { MapFiltersSheet } from "@/components/MapFiltersSheet";
 import { MapTopControls } from "@/components/MapTopControls";
 import { MapView } from "@/components/MapView";
+import { ProviderStackDebugPanel } from "@/components/ProviderStackDebugPanel";
 import {
   PlaceBottomSheet,
   type PlaceSheetSnapState
 } from "@/components/PlaceBottomSheet";
 import { PlaceCard } from "@/components/PlaceCard";
 import { SaveStatusSheet } from "@/components/SaveStatusSheet";
+import { createCanonicalPlaceIdRemap } from "@/lib/map/canonicalPlaceIdentity";
+import { buildMapUrlSearchParams } from "@/lib/map/mapUrlState";
+import {
+  buildSavePlacePayload,
+  buildUnsavePlacePayload
+} from "@/lib/map/placeSavePayload";
+import { nextCanonicalPlaceSelection } from "@/lib/map/selection";
+import { composePlaceDetailViewModel } from "@/lib/place-details/composePlaceDetailViewModel";
+import { resolveProviderStack } from "@/lib/provider-stack/stacks";
 
 type Props = {
   foodLists: FoodList[];
   foodPlaces: FoodPlace[];
   initialSelectedListIds?: string[];
   initialFocusedPlaceId?: string;
+  providerConfiguration: PublicProviderConfiguration;
 };
 
 type SavePlaceResponse = {
@@ -73,37 +89,6 @@ function initialsForName(name: string) {
     .join("");
 }
 
-function slugPart(value: string) {
-  const slug = value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-")
-    .slice(0, 120);
-
-  return slug || "place";
-}
-
-function coordinatePart(value: number) {
-  return value.toFixed(5).replace("-", "m").replace(".", "p");
-}
-
-function placeKeyForFoodPlace(
-  place: Pick<FoodPlace, "name" | "postalCode" | "latitude" | "longitude">
-) {
-  const namePart = slugPart(place.name);
-  const postalPart = place.postalCode?.replace(/\D/g, "");
-
-  if (postalPart) {
-    return `${namePart}-${postalPart}`;
-  }
-
-  return `${namePart}-lat${coordinatePart(place.latitude)}-lng${coordinatePart(place.longitude)}`;
-}
-
 function getInitialSavedPlaceIds(lists: FoodList[], places: FoodPlace[]) {
   const mineListIds = new Set(lists.filter((list) => list.isMine).map((list) => list.id));
   return new Set(
@@ -122,7 +107,8 @@ export function FoodMapApp({
   foodLists,
   foodPlaces,
   initialSelectedListIds,
-  initialFocusedPlaceId
+  initialFocusedPlaceId,
+  providerConfiguration
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -140,6 +126,16 @@ export function FoodMapApp({
   const [placeSheetSnapState, setPlaceSheetSnapState] =
     useState<PlaceSheetSnapState>("mid");
   const [referencePoint, setReferencePoint] = useState<LocationSearchResult | null>(null);
+  const [mapViewport, setMapViewport] = useState<MapViewport>({
+    center: { latitude: 1.302, longitude: 103.84 },
+    zoom: 11.2
+  });
+  const [providerPreference, setProviderPreference] =
+    useState<ProviderStackPreference>("auto");
+  const [providerHealth, setProviderHealth] = useState<ProviderStackHealth>({
+    googleMap: "healthy"
+  });
+  const [mapFatalError, setMapFatalError] = useState<string | null>(null);
   const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isMapFiltersOpen, setIsMapFiltersOpen] = useState(false);
@@ -169,6 +165,43 @@ export function FoodMapApp({
     [lists, selectedListIds]
   );
   const isListFilterActive = Boolean(lists.length) && selectedAccessibleListCount < lists.length;
+  const providerResolution = useMemo(
+    () =>
+      resolveProviderStack({
+        configuration: providerConfiguration,
+        health: providerHealth,
+        preference: providerPreference
+      }),
+    [providerConfiguration, providerHealth, providerPreference]
+  );
+  const mapCameraIntent = useMemo(
+    () =>
+      selectedPlace
+        ? ({ kind: "focus-place", placeId: selectedPlace.id } as const)
+        : referencePoint
+          ? ({
+              kind: "focus-reference",
+              referenceKey:
+                referencePoint.externalReference?.id ??
+                `${referencePoint.coordinates.latitude},${referencePoint.coordinates.longitude}`
+            } as const)
+          : ({ kind: "rest" } as const),
+    [referencePoint, selectedPlace]
+  );
+  const selectedPlaceDetailViewModel = useMemo(
+    () =>
+      selectedPlace
+        ? composePlaceDetailViewModel({
+            place: selectedPlace,
+            isSaved: savedPlaceIds.has(selectedPlace.id),
+            googleDetailsEnabled:
+              providerConfiguration.google.capabilities.detailsEssentials ||
+              providerConfiguration.google.capabilities.detailsPro ||
+              providerConfiguration.google.capabilities.detailsEnterprise
+          })
+        : null,
+    [providerConfiguration.google.capabilities, savedPlaceIds, selectedPlace]
+  );
 
   useEffect(() => {
     const nextScope = selectedListIds.join(",");
@@ -187,14 +220,11 @@ export function FoodMapApp({
     if (initialFocusedPlaceId && resolvedInitialPlaceId !== initialFocusedPlaceId) return;
 
     const currentQuery = searchParams.toString();
-    const params = new URLSearchParams(currentQuery);
-    params.set("lists", selectedListIds.join(","));
-
-    if (selectedPlace) {
-      params.set("place", selectedPlace.id);
-    } else {
-      params.delete("place");
-    }
+    const params = buildMapUrlSearchParams({
+      currentQuery,
+      selectedListIds,
+      selectedPlaceId: selectedPlace?.id
+    });
 
     const nextQuery = params.toString();
     if (nextQuery === currentQuery) return;
@@ -224,8 +254,29 @@ export function FoodMapApp({
       : undefined;
 
   function handleSelectPlace(place: MergedPlace) {
-    setPlaceSheetSnapState((current) => (selectedPlace ? current : "mid"));
-    setSelectedPlace(place);
+    const selection = nextCanonicalPlaceSelection({
+      currentPlace: selectedPlace,
+      nextPlace: place,
+      currentSnapState: placeSheetSnapState
+    });
+    setPlaceSheetSnapState(selection.snapState);
+    setSelectedPlace(selection.selectedPlace);
+  }
+
+  function handleMapReady() {
+    if (providerResolution.stack.renderer === "google") {
+      setMapFatalError(null);
+    }
+  }
+
+  function handleMapFatalError(error: MapRendererFatalError) {
+    if (error.renderer === "google") {
+      setProviderHealth({ googleMap: "fatal" });
+      setMapFatalError("Google Maps was unavailable. Locco switched to its fallback map.");
+      return;
+    }
+
+    setMapFatalError("The fallback map could not start. Try refreshing the page.");
   }
 
   function closeSelectedPlace() {
@@ -360,6 +411,22 @@ export function FoodMapApp({
     );
   }
 
+  function adoptCanonicalPlaceId(previousId: string, canonicalId: string) {
+    const remap = createCanonicalPlaceIdRemap(previousId, canonicalId);
+    if (!remap.changed) return;
+
+    setPlaces((current) => remap.items(current));
+    setSelectedPlace((current) => remap.item(current));
+    setSavedPlaceIds((current) => remap.idSet(current));
+    setHighlightedIds((current) => remap.idList(current));
+    setRecommendationSession((current) => ({
+      ...current,
+      results: remap.items(current.results)
+    }));
+    setSavingPlaceId((current) => (current ? remap.id(current) : current));
+    setUnsavingPlaceId((current) => (current ? remap.id(current) : current));
+  }
+
   function saveLocallyToDemoList(
     place: MergedPlace,
     status: PlaceStatus,
@@ -458,6 +525,7 @@ export function FoodMapApp({
     }
 
     const placeBeingSaved = selectedPlace;
+    let authoritativePlaceId = placeBeingSaved.id;
     setSavingPlaceId(placeBeingSaved.id);
     setSaveError(null);
 
@@ -465,23 +533,11 @@ export function FoodMapApp({
       const response = await fetch("/api/places/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          placeId: placeBeingSaved.id,
-          name: placeBeingSaved.name,
-          address: placeBeingSaved.address,
-          postalCode: placeBeingSaved.postalCode,
-          latitude: placeBeingSaved.latitude,
-          longitude: placeBeingSaved.longitude,
-          priceRange: placeBeingSaved.priceRange,
-          notes: placeBeingSaved.notes,
-          status,
-          savedNote: note,
-          savedRating: status === "visited" ? rating : null
-        })
+        body: JSON.stringify(buildSavePlacePayload(placeBeingSaved, status, note, rating))
       });
 
       const result = (await response.json().catch(() => null)) as SavePlaceResponse | null;
-      if (!response.ok || !result?.saved || !result.listId) {
+      if (!response.ok || !result?.saved || !result.placeId || !result.listId) {
         const message = result?.error ?? "Could not save this place yet.";
         if (response.status === 503) {
           saveLocallyToDemoList(placeBeingSaved, status, note, rating);
@@ -504,13 +560,17 @@ export function FoodMapApp({
         isMine: true
       };
 
+      authoritativePlaceId = result.placeId;
       addListIfMissing(savedList);
-      markPlaceSaved(placeBeingSaved.id, savedList, ownerName, status, note, rating);
+      adoptCanonicalPlaceId(placeBeingSaved.id, authoritativePlaceId);
+      markPlaceSaved(authoritativePlaceId, savedList, ownerName, status, note, rating);
       setSaveSheet(null);
     } catch {
       setSaveError("Could not save this place yet.");
     } finally {
-      setSavingPlaceId((current) => (current === placeBeingSaved.id ? null : current));
+      setSavingPlaceId((current) =>
+        current === placeBeingSaved.id || current === authoritativePlaceId ? null : current
+      );
     }
   }
 
@@ -528,10 +588,7 @@ export function FoodMapApp({
       const response = await fetch("/api/places/save", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          placeId: placeBeingUnsaved.id,
-          placeKey: placeKeyForFoodPlace(placeBeingUnsaved)
-        })
+        body: JSON.stringify(buildUnsavePlacePayload(placeBeingUnsaved))
       });
 
       const result = (await response.json().catch(() => null)) as UnsavePlaceResponse | null;
@@ -564,14 +621,44 @@ export function FoodMapApp({
     <main className="locco-map-page relative h-[calc(100dvh-41px)] overflow-hidden bg-cream">
       <div className="absolute inset-0">
         <MapView
+          renderer={providerResolution.stack.renderer}
+          googleMapConfiguration={providerConfiguration.google.map}
           places={visiblePlaces}
           highlightedIds={highlightedIds}
+          savedPlaceIds={savedPlaceIds}
           selectedPlace={selectedPlace}
           placeSheetSnapState={placeSheetSnapState}
           referencePoint={referencePoint}
+          viewport={mapViewport}
+          cameraIntent={mapCameraIntent}
+          onViewportChange={setMapViewport}
           onSelectPlace={handleSelectPlace}
+          onReady={handleMapReady}
+          onFatalError={handleMapFatalError}
         />
       </div>
+
+      {providerConfiguration.developmentControlsEnabled ? (
+        <ProviderStackDebugPanel
+          resolution={providerResolution}
+          preference={providerPreference}
+          onPreferenceChange={(preference) => {
+            setProviderPreference(preference);
+            if (preference !== "fallback") {
+              setProviderHealth({ googleMap: "healthy" });
+            }
+          }}
+        />
+      ) : null}
+
+      {mapFatalError ? (
+        <p
+          role="status"
+          className="pointer-events-none absolute inset-x-4 top-[4.75rem] z-20 mx-auto max-w-md rounded-full bg-white/95 px-4 py-2 text-center text-xs font-bold text-stone-600 shadow-soft ring-1 ring-stone-200"
+        >
+          {mapFatalError}
+        </p>
+      ) : null}
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 p-3">
         <MapTopControls
@@ -681,6 +768,7 @@ export function FoodMapApp({
 
       <PlaceBottomSheet
         place={selectedPlace}
+        detailViewModel={selectedPlaceDetailViewModel}
         lists={lists}
         distanceMeters={selectedPlaceDistance}
         snapState={placeSheetSnapState}

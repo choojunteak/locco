@@ -36,5 +36,3 @@ export type LocationSearchAdapter = {
   };
   search: (query: string) => Promise<LocationSearchResult[]>;
 };
-
-export type MapRendererMode = "onemap-maplibre" | "google";

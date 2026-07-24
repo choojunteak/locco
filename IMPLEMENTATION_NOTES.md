@@ -4,7 +4,7 @@ These notes capture the current Locco architecture and completed milestones at a
 
 ## Current Architecture
 
-Locco is a Next.js App Router app with TypeScript, Tailwind CSS, MapLibre GL JS, Motion for React, Supabase Auth, `@supabase/ssr`, a provider-neutral server-side location-search route currently backed by OneMap, and mock/demo fallback data.
+Locco is a Next.js App Router app with TypeScript, Tailwind CSS, a Google-primary/MapLibre-fallback renderer boundary, Motion for React, Supabase Auth, `@supabase/ssr`, a provider-neutral server-side location-search route currently backed by OneMap, and mock/demo fallback data.
 
 The app keeps the product model centered on trusted saved places:
 
@@ -18,6 +18,12 @@ Supabase-backed reads and writes are behind clear boundaries. When Supabase publ
 ## Completed Milestones
 
 - Map MVP: `/app/map` uses MapLibre with Singapore-focused places, clustering, selected-list filtering, selected-list URL persistence, mobile bottom sheets, and compact floating navigation.
+- Google map foundation: the map route now resolves one complete provider stack from sanitized server capabilities. Google is the preferred stack when its map capability, restricted public configuration, and health checks pass; MapLibre is selected otherwise. Defaults remain fully disabled, and production has no provider selector.
+- Renderer-neutral map contract: both renderers consume canonical places, selected/highlighted/personal-save states, reference point, shared viewport, camera intent, sheet insets, canonical marker selection, readiness, and fatal-error callbacks. MapLibre no longer owns application state.
+- Locco marker system: Google uses custom HTML/CSS Advanced Markers and custom clusters with priority `selected > highlighted > personal save > normal`. Want-to-try, visited, transient, reference, and cluster states have separate presentation; canonical and future transient Google identities use distinct key namespaces.
+- Canonical pin-to-sheet flow: renderer taps return the exact Locco place, preserve unrelated URL parameters and explicit zero-list scope, update `place=`, and reuse the existing Motion sheet and save/status/social flows. Google InfoWindows are not used.
+- Provider-aware place details: application types distinguish Locco identity/social data, personal status/note/rating, and Google-attributed details. Fixed cost-aware field profiles, selected-place-only deduplication, and stale-response generation guards are implemented without issuing live Places requests.
+- Provider-reference boundary: a future record contract covers canonical `placeId`, namespaced provider/external ID, verification time, lifecycle state, and replacement ID. Reconciliation order is fixed as exact provider reference, canonical `place_key`, complete address/postal code, coordinate proximity as supporting evidence, then explicit confirmation; display name alone is never a merge signal.
 - Location search boundary: normalized search contracts feed a provider-neutral server route; OneMap is the active adapter and known Singapore locations remain the local fallback.
 - Ask Locco: recommendations use deterministic parsing/scoring and compact map-oriented result cards.
 - List discovery: `/app/lists` uses a friend/list-owner browsing layout with Locco palette pills and large saved-list cards.
@@ -71,14 +77,21 @@ Preserved architecture:
 - signed-in saved-state behavior and mock/no-Supabase fallback;
 - Add Place remaining local-only.
 
-## Location Provider Boundary Decisions
+## Google-Primary Provider Foundation Decisions
 
 - `LocationSearchResult` normalizes provider metadata, result kind, optional namespaced external reference, display fields, postal code, and validated coordinates. Raw OneMap response fields exist only inside the OneMap adapter.
 - The browser calls `/api/location-search`; `src/lib/location-search/providers/onemap.ts` is the active adapter. Known Locco locations retain their existing first-result ordering, the server still caps merged results at 8, and the client still renders at most 4.
 - Search results are transient reference data, not a universal persisted place model. Locco UUIDs and the server-computed `place_key` remain canonical, and no schema or canonical save-reconciliation change was introduced.
-- Search and rendering stay separate. The minimum renderer-mode contract records `onemap-maplibre` and `google` without introducing a renderer framework.
-- The approved controlled-prototype direction is a Google renderer plus ordinary Google Places APIs. MapLibre remains the planned renderer for the OneMap/Locco fallback mode.
-- Google is not implemented or activated here: there is no key, SDK, script, provider route, billing integration, network call, provider persistence, or usage counter.
+- Search and rendering stay separate. The foundation stack pairs the Google renderer with existing OneMap discovery until the later Google discovery stage; MapLibre never receives Google transient results. This avoids half-switched renderer/search combinations while independent capabilities remain off.
+- Google is the intended primary production map platform. MapLibre plus OneMap/Locco is an operational fallback for disabled/unconfigured state, kill switch, fatal script/map initialization, and future sustained outage or quota shutdown. It is not a production user preference.
+- The server resolves capability requests against build support and required configuration, then sends only sanitized booleans plus the public browser map key/map ID when map use is actually enabled. The server API key is never included in client configuration.
+- Every capability defaults false and is independently named: map, autocomplete, text, nearby, Details Essentials/Pro/Enterprise, ratings, opening hours, photos, geocoding, routes, and reconciliation/save. Only map is supported in this build; unsupported flags remain false even when requested.
+- `GoogleMapView` uses a lazy singleton loader, a project map ID, Advanced Markers, custom clustering, shared viewport/camera state, `ResizeObserver`, listener disposal, marker/cluster cleanup, and remount-safe initialization. When Google is disabled the component is not mounted and the loader makes no Google request.
+- Canonical Locco marker selection uses Locco place identity and calls the same selection handler as MapLibre/list cards. When persistence returns a different authoritative database UUID, the client atomically adopts that UUID across application state and the replace-style `place=` URL while preserving list scope and unrelated parameters.
+- Provider detail absence and non-fatal detail errors do not trigger renderer fallback. No detail request starts without a selected reconciled place and enabled fixed profile; in-flight work is deduplicated and stale generations are discarded.
+- Opening hours is an independent detail capability and can be operationally blocked at a conservative usage threshold without changing the map capability. When blocked or unavailable, the view model omits the hours row while Google Maps, the Locco Motion sheet, and the shared Directions sheet's `Open in Google Maps` action remain active.
+- No Google Places search, reconciliation, persistence, provider-reference schema, save migration, photo storage, key creation, billing change, production activation, usage counter, or cloud resource is part of this branch.
+- Fixed detail profiles can describe expected SKU classes for guardrail telemetry, but application telemetry is not evidence of provider billing. Actual cost and quota data must come from provider-side controls.
 - OneMap authentication is deliberately deferred until after the controlled Google prototype, but authenticated requests, multi-page fetching, retry policy, timeout/backoff, and richer error classification are required before OneMap is considered a dependable production fallback.
 
 ## Current Boundaries
@@ -92,7 +105,7 @@ Preserved architecture:
 - The map place sheet preserves save/status controls, SaveStatusSheet, remove saved place, mock fallback, signed-in saved state, and `/app/map?place=...` focus behavior.
 - The app must remain runnable without Supabase credentials.
 - OneMap calls stay behind the server-side location-search adapter.
-- Paid provider APIs, keys, billing, and scripts stay disabled until an explicitly scoped task; do not scrape Google Maps, TikTok, or Instagram.
+- Paid provider APIs and scripts remain fail-closed behind exact capabilities and required configuration. Keys, billing, live provider activation, and cloud resources require explicit manual setup; do not scrape Google Maps, TikTok, or Instagram.
 - Do not add placeholder image files for list covers.
 - Core mobile gestures should be built with a proper motion/gesture architecture early instead of patched height/pointer dragging.
 - OneMap currently acts primarily as a location/address source, requests only its first result page, and is capped again by the server and client. Autocomplete, comprehensive chain/outlet coverage, ratings, photos, opening hours, categories, and robust external place identity are not implemented.
@@ -102,8 +115,8 @@ Preserved architecture:
 ## Future Work
 
 - Keep docs current as project context changes.
-- Build `google-provider-controlled-prototype` behind the location-search boundary using the approved Google renderer plus ordinary Google Places direction. Keep MapLibre plus OneMap/Locco as an intentional fallback mode, make paid capabilities independently disableable, and explicitly resolve keys, billing controls, storage/display/attribution terms, provider references, and kill switches before any production activation.
-- Harden OneMap before production fallback use with authenticated requests, multi-page fetching, retry policy, timeout/backoff, and comprehensive error classification.
+- Follow the provider rollout in order: `google-maps-places-foundation`, `google-places-discovery-flow`, `place-provider-reference-model`, `google-place-rich-details`, then `onemap-search-auth-hardening`.
+- The discovery stage must keep external results transient and separately identifiable. The provider-reference stage owns schema/reconciliation/duplicate-prevention decisions. The rich-details stage owns fixed field masks, selected-place lifecycle, cost/quota controls, attribution, moved/closed handling, and live provider QA. OneMap hardening owns authentication, paging, timeout/backoff, retries, and error classification.
 - Keep `map-immersive-header-layout` as a separate branch covering a route-specific full-height map shell, removal or replacement of the beige map header, correct `100dvh`, iOS/Android safe areas, document-scroll removal, the AppShell/map mismatch, final top/bottom control placement, a functional profile surface for Profile ready and Sign out, and whether a small Locco logo mark remains.
 - Polish expanded place detail spacing and section hierarchy.
 - Revisit fully native nested scroll-to-drag handoff for expanded sheet content if needed.

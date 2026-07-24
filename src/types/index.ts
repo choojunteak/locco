@@ -91,6 +91,43 @@ export type {
   LocationSearchProviderMetadata,
   LocationSearchResult,
   LocationSearchResultKind,
-  MapRendererMode,
   ValidatedCoordinates
 } from "./locationSearch";
+
+export type {
+  GoogleCapabilities,
+  GoogleCapabilityId,
+  LocationDiscoveryProviderId,
+  MapRendererId,
+  ProviderStackDefinition,
+  ProviderStackHealth,
+  ProviderStackId,
+  ProviderStackPreference,
+  ProviderStackResolution,
+  ProviderStackResolutionReason,
+  PublicGoogleMapConfiguration,
+  PublicProviderConfiguration
+} from "./providerStack";
+
+export type {
+  MapCameraInsets,
+  MapCameraIntent,
+  MapRendererCommonProps,
+  MapRendererFatalError,
+  MapSheetSnapState,
+  MapViewport,
+  TransientGoogleMapResult
+} from "./mapRenderer";
+
+export type {
+  GooglePlaceOperationalStatus,
+  GoogleProviderPlaceDetails,
+  PlaceDetailViewModel,
+  ProviderPlaceDetailsState
+} from "./placeDetails";
+
+export type {
+  PlaceProviderLifecycleState,
+  PlaceProviderReferenceRecord,
+  ProviderReconciliationSignal
+} from "./providerReference";

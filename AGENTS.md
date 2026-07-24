@@ -76,7 +76,9 @@ Current UI direction:
 - Top controls stay available with no selection, minimized, and mid; they are hidden and inert while the map place sheet is expanded.
 - MapLibre attribution must remain visible and clickable, with map-page-only overrides.
 - The current profile control is intentionally presentational until a dedicated profile/immersive-map task makes it functional.
-- The approved controlled-prototype direction is a Google renderer with ordinary Google Places APIs, while MapLibre remains the OneMap/Locco fallback renderer. This direction is not production activation: provider code, keys, billing, persistence, storage, and attribution work require their own explicitly scoped tasks.
+- Google is the intended primary production map/Places platform; MapLibre plus OneMap/Locco is the operational fallback, not a production provider selector. Keep every paid capability fail-closed and independently disableable. The current foundation implements only the map capability and does not authorize keys, billing, discovery, persistence, storage, schema, or production activation.
+- Resolve provider choice as one complete stack and keep renderer state provider-neutral. A Google fatal map/script/configuration failure may switch to MapLibre without dropping list scope, canonical selection, `place=`, unrelated URL parameters, viewport, or Motion-sheet state. Provider-detail absence or failure must never trigger renderer fallback.
+- Keep Google opening hours independently disableable. If it is unavailable or reaches a conservative usage threshold, leave Google Maps and the Locco place sheet active, omit only the opening-hours row, and retain the shared Directions action with `Open in Google Maps`; never switch the renderer to OneMap for an hours-only condition.
 - Treat route-specific immersive map shell, safe areas, AppShell removal/replacement, document scrolling, and final profile placement as a separate architecture task.
 - Expanded place detail spacing and internal scroll handoff can be polished later.
 
