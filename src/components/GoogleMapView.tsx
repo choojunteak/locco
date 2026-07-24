@@ -10,6 +10,11 @@ import {
   createLoccoReferencePointContent
 } from "@/lib/map/loccoMarkerContent.client";
 import { createCanonicalMarkerModels } from "@/lib/map/markerModel";
+import {
+  bindAdvancedMarkerClick,
+  disposeAdvancedMarkerClickBindings,
+  type AdvancedMarkerClickBinding
+} from "@/lib/google/advancedMarkerClick.client";
 import { loadGoogleMapsLibraries } from "@/lib/google/mapsLoader.client";
 
 type Props = MapRendererCommonProps & {
@@ -37,7 +42,7 @@ export function GoogleMapView({
   const mapRef = useRef<google.maps.Map | null>(null);
   const initialViewportRef = useRef(viewport);
   const markerLibraryRef = useRef<google.maps.MarkerLibrary | null>(null);
-  const canonicalMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  const canonicalMarkerBindingsRef = useRef<AdvancedMarkerClickBinding[]>([]);
   const referenceMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const clustererRef = useRef<MarkerClusterer | null>(null);
   const mapListenersRef = useRef<google.maps.MapsEventListener[]>([]);
@@ -142,10 +147,8 @@ export function GoogleMapView({
       clustererRef.current?.clearMarkers();
       clustererRef.current?.setMap(null);
       clustererRef.current = null;
-      canonicalMarkersRef.current.forEach((advancedMarker) => {
-        advancedMarker.map = null;
-      });
-      canonicalMarkersRef.current = [];
+      disposeAdvancedMarkerClickBindings(canonicalMarkerBindingsRef.current);
+      canonicalMarkerBindingsRef.current = [];
       if (referenceMarkerRef.current) {
         referenceMarkerRef.current.map = null;
         referenceMarkerRef.current = null;
@@ -166,13 +169,11 @@ export function GoogleMapView({
 
     clustererRef.current?.clearMarkers();
     clustererRef.current?.setMap(null);
-    canonicalMarkersRef.current.forEach((advancedMarker) => {
-      google.maps.event.clearInstanceListeners(advancedMarker);
-      advancedMarker.map = null;
-    });
+    disposeAdvancedMarkerClickBindings(canonicalMarkerBindingsRef.current);
+    canonicalMarkerBindingsRef.current = [];
 
     const placeById = new Map(places.map((place) => [place.id, place]));
-    const advancedMarkers = markerModels.map((markerModel) => {
+    const markerBindings = markerModels.map((markerModel) => {
       const advancedMarker = new markerLibrary.AdvancedMarkerElement({
         position: {
           lat: markerModel.latitude,
@@ -189,13 +190,12 @@ export function GoogleMapView({
               : 10
       });
 
-      advancedMarker.addListener("click", () => {
+      return bindAdvancedMarkerClick(advancedMarker, () => {
         const place = placeById.get(markerModel.placeId);
         if (place) onSelectPlaceRef.current(place);
       });
-
-      return advancedMarker;
     });
+    const advancedMarkers = markerBindings.map(({ marker }) => marker);
 
     const clusterRenderer: Renderer = {
       render: ({ count, position }) =>
@@ -207,7 +207,7 @@ export function GoogleMapView({
         })
     };
 
-    canonicalMarkersRef.current = advancedMarkers;
+    canonicalMarkerBindingsRef.current = markerBindings;
     clustererRef.current = new MarkerClusterer({
       map,
       markers: advancedMarkers,
@@ -218,10 +218,10 @@ export function GoogleMapView({
       clustererRef.current?.clearMarkers();
       clustererRef.current?.setMap(null);
       clustererRef.current = null;
-      advancedMarkers.forEach((advancedMarker) => {
-        google.maps.event.clearInstanceListeners(advancedMarker);
-        advancedMarker.map = null;
-      });
+      disposeAdvancedMarkerClickBindings(markerBindings);
+      if (canonicalMarkerBindingsRef.current === markerBindings) {
+        canonicalMarkerBindingsRef.current = [];
+      }
     };
   }, [markerModels, places, readyGeneration]);
 
